@@ -1,10 +1,14 @@
 import asyncio
+import os
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 from api.routes import router
 from intelligence.asset_streamer import run_discovery_stream
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # Background task reference
 stream_task = None
@@ -29,7 +33,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[os.getenv("FRONTEND_ORIGIN", "http://localhost:5173")],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

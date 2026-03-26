@@ -1,6 +1,6 @@
-import openai
 import os
 from typing import Dict, Any
+from google import genai
 
 class SemanticAssetClassifier:
     """
@@ -9,7 +9,12 @@ class SemanticAssetClassifier:
     """
     
     def __init__(self):
-        self.api_key = os.getenv("OPENAI_API_KEY", "")
+        self.api_key = os.getenv("GEMINI_API_KEY", "")
+        if self.api_key:
+            self.client = genai.Client(api_key=self.api_key)
+        else:
+            self.client = None
+            
         # fallback dictionary for demo mode or if no API key is set
         self.fallback_classification = {
             "payments-api": {"classification": "High-sensitivity financial transaction endpoint", "score": 9},

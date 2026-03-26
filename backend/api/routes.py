@@ -27,22 +27,14 @@ crtsh = CrtshClient()
 ssllabs = SSLLabsClient()
 classifier = SemanticAssetClassifier()
 
-# ── Request models ──────────────────────────────────────
-
 class ScenarioRequest(BaseModel):
     crqc_year: int = 2031
     migration_start_year: int = 2026
 
-# ── Existing endpoints ──────────────────────────────────
-
 @router.get("/portfolio/summary")
 def get_portfolio_summary(db: Session = Depends(get_db)):
-    """
-    High-level stats for the dashboard header.
-    """
     total_assets = db.query(Asset).count()
     quantum_debt = total_assets * 8500
-    
     return {
         "assets_scanned": total_assets,
         "quantum_debt_rate": quantum_debt,
@@ -52,10 +44,6 @@ def get_portfolio_summary(db: Session = Depends(get_db)):
 
 @router.get("/portfolio/cbom")
 async def get_cbom(db: Session = Depends(get_db)):
-    """
-    Returns the Cryptographic Bill of Materials enriched with Red Team priority,
-    migration complexity, and semantic classification from the SQLite DB.
-    """
     assets = db.query(Asset).all()
     db_cbom = [
         {
@@ -91,9 +79,35 @@ async def get_cbom(db: Session = Depends(get_db)):
 
             comp = complexity_lookup.get(orig["hostname"], {})
             merged["complexity_level"] = comp.get("complexity_level", "MEDIUM")
-    """
-    Recalculate survival curves under a custom CRQC arrival / migration scenario.
-    """
+            merged["complexity_score"] = comp.get("complexity_score", 50)
+
+            enriched_cbom.append(merged)
+
+    return {"data": enriched_cbom}
+
+@router.get("/portfolio/scan/{hostname}")
+async def scan_asset(hostname: str, db: Session = Depends(get_db)):
+    results = await ssllabs.analyze(hostname)
+    
+    existing = db.query(Asset).filter(Asset.hostname == hostname).first()
+    if not existing:
+        new_asset = Asset(
+            hostname=hostname,
+            ip_address=results.get("endpoints", [{}])[0].get("ipAddress", "Unknown"),
+            algorithm_strength="RSA-2048",
+            tls_version="TLS 1.2",
+            semantic_classification=f"Manually scanned endpoint ({hostname.split('.')[0]})",
+            semantic_sensitivity_score=5,
+            interceptability_score=5,
+            estimated_migration_months=12
+        )
+        db.add(new_asset)
+        db.commit()
+
+    return results
+
+@router.post("/portfolio/scenario")
+def run_scenario(scenario: ScenarioRequest, db: Session = Depends(get_db)):
     original_target = survival_modeler.median_crqc_year
     survival_modeler.median_crqc_year = scenario.crqc_year
 
@@ -119,9 +133,6 @@ async def get_cbom(db: Session = Depends(get_db)):
 
 @router.get("/portfolio/narrative/{hostname}")
 def get_narrative(hostname: str, db: Session = Depends(get_db)):
-    """
-    Returns the LLM-generated risk narrative for a specific asset.
-    """
     asset = db.query(Asset).filter(Asset.hostname == hostname).first()
     if not asset:
         raise HTTPException(status_code=404, detail=f"Asset '{hostname}' not found")
@@ -155,20 +166,13 @@ def get_narrative(hostname: str, db: Session = Depends(get_db)):
 
 @router.get("/portfolio/cbom/{hostname}/certlogs")
 async def get_cert_logs(hostname: str):
-    """
-    Returns Certificate Transparency log entries for a hostname.
-    """
     domain = ".".join(hostname.split(".")[-2:]) if "." in hostname else hostname
     logs = await crtsh.get_certificates(domain)
     return {"hostname": hostname, "domain": domain, "certificates": logs}
 
 @router.get("/reports/board-brief")
 def download_board_brief(db: Session = Depends(get_db)):
-    """
-    Generates and streams a PDF Board Brief.
-    """
     total_assets = db.query(Asset).count()
-    
     summary = {
         "assets_scanned": total_assets,
         "quantum_debt_rate": total_assets * 8500,
