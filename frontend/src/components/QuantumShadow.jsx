@@ -42,9 +42,9 @@ const QuantumShadow = ({ cbom, crqcYear = 2031 }) => {
         svg.append('g')
             .attr('transform', `translate(0,${cbom.length * (barHeight + barGap)})`)
             .call(xAxis)
-            .selectAll('text').attr('fill', '#a1a1aa').style('font-size', '11px').style('font-family', 'Inter, sans-serif');
-        svg.selectAll('.domain').attr('stroke', '#3f3f46');
-        svg.selectAll('.tick line').attr('stroke', '#3f3f46');
+            .selectAll('text').attr('fill', 'var(--text-secondary)').style('font-size', '11px').style('font-family', 'Inter, sans-serif');
+        svg.selectAll('.domain').attr('stroke', 'var(--border-color)');
+        svg.selectAll('.tick line').attr('stroke', 'var(--border-color)');
 
         // CRQC arrival line
         svg.append('line')
@@ -52,7 +52,7 @@ const QuantumShadow = ({ cbom, crqcYear = 2031 }) => {
             .attr('x2', x(crqcYear))
             .attr('y1', -10)
             .attr('y2', cbom.length * (barHeight + barGap) + 5)
-            .attr('stroke', '#ef4444')
+            .attr('stroke', 'var(--color-critical)')
             .attr('stroke-width', 2)
             .attr('stroke-dasharray', '6,4');
 
@@ -60,7 +60,7 @@ const QuantumShadow = ({ cbom, crqcYear = 2031 }) => {
             .attr('x', x(crqcYear))
             .attr('y', -15)
             .attr('text-anchor', 'middle')
-            .attr('fill', '#ef4444')
+            .attr('fill', 'var(--color-critical)')
             .style('font-size', '10px')
             .style('font-family', 'Inter, sans-serif')
             .style('font-weight', '600')
@@ -93,8 +93,8 @@ const QuantumShadow = ({ cbom, crqcYear = 2031 }) => {
                 .attr('width', x(endYear) - x(currentYear))
                 .attr('height', barHeight)
                 .attr('rx', 4)
-                .attr('fill', '#18181b')
-                .attr('stroke', '#27272a')
+                .attr('fill', 'var(--bg-surface-2)')
+                .attr('stroke', 'var(--border-color)')
                 .attr('stroke-width', 1);
 
             // Exposure window (from now until migration completes)
@@ -104,7 +104,7 @@ const QuantumShadow = ({ cbom, crqcYear = 2031 }) => {
                 .attr('width', Math.max(0, x(harvestEnd) - x(currentYear)))
                 .attr('height', barHeight)
                 .attr('rx', 4)
-                .attr('fill', '#3b82f6')
+                .attr('fill', 'var(--pnb-navy)')
                 .attr('opacity', 0.15);
 
             // Critical overlap zone (exposure that overlaps with CRQC window)
@@ -118,7 +118,7 @@ const QuantumShadow = ({ cbom, crqcYear = 2031 }) => {
                         .attr('width', x(overlapEnd) - x(overlapStart))
                         .attr('height', barHeight - 8)
                         .attr('rx', 2)
-                        .attr('fill', '#ef4444')
+                        .attr('fill', 'var(--color-critical)')
                         .attr('opacity', 0.6)
                         .attr('filter', 'url(#glow)');
 
@@ -139,7 +139,7 @@ const QuantumShadow = ({ cbom, crqcYear = 2031 }) => {
                 .attr('x', -15)
                 .attr('y', y + barHeight / 2 + 4)
                 .attr('text-anchor', 'end')
-                .attr('fill', '#e4e4e7')
+                .attr('fill', 'var(--text-primary)')
                 .style('font-size', '10px')
                 .style('font-family', 'Inter, sans-serif')
                 .style('font-weight', '500')
@@ -147,7 +147,7 @@ const QuantumShadow = ({ cbom, crqcYear = 2031 }) => {
 
             // Priority indicator (glowing dot)
             const priority = asset.target_priority || 'MEDIUM';
-            const badgeColor = priority === 'CRITICAL' ? '#ef4444' : priority === 'HIGH' ? '#f59e0b' : '#3f3f46';
+            const badgeColor = priority === 'CRITICAL' ? 'var(--color-critical)' : priority === 'HIGH' ? 'var(--color-warning)' : 'var(--border-color-soft)';
 
             svg.append('circle')
                 .attr('cx', -10)

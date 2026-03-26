@@ -32,7 +32,7 @@ const SurvivalCurve = ({ data }) => {
                 .attr('transform', `translate(0,${height})`)
                 .call(xAxis)
                 .selectAll('text')
-                .attr('fill', '#71717a')
+                .attr('fill', 'var(--text-secondary)')
                 .style('font-size', '10px')
                 .style('font-family', 'Inter, sans-serif');
 
@@ -45,7 +45,7 @@ const SurvivalCurve = ({ data }) => {
             svg.append('g')
                 .call(yAxis)
                 .selectAll('text')
-                .attr('fill', '#71717a')
+                .attr('fill', 'var(--text-secondary)')
                 .style('font-size', '10px')
                 .style('font-family', 'Inter, sans-serif');
 
@@ -53,7 +53,7 @@ const SurvivalCurve = ({ data }) => {
             svg.append("path")
                 .datum([{ year: data[0].year, p: 50 }, { year: data[data.length - 1].year, p: 50 }])
                 .attr("fill", "none")
-                .attr("stroke", "#ef4444")
+                .attr("stroke", "var(--color-critical)")
                 .attr("stroke-width", 1)
                 .attr("stroke-dasharray", "4,4")
                 .attr("opacity", 0.3)
@@ -70,12 +70,12 @@ const SurvivalCurve = ({ data }) => {
 
             areaGradient.append('stop')
                 .attr('offset', '0%')
-                .attr('stop-color', '#3b82f6')
+                .attr('stop-color', 'var(--pnb-navy)')
                 .attr('stop-opacity', 0.2);
 
             areaGradient.append('stop')
                 .attr('offset', '100%')
-                .attr('stop-color', '#3b82f6')
+                .attr('stop-color', 'var(--pnb-navy)')
                 .attr('stop-opacity', 0);
 
             // Pulse Glow Filter
@@ -107,7 +107,7 @@ const SurvivalCurve = ({ data }) => {
             svg.append('path')
                 .datum(data)
                 .attr('fill', 'none')
-                .attr('stroke', '#3b82f6')
+                .attr('stroke', 'var(--pnb-navy)')
                 .attr('stroke-width', 4)
                 .attr('opacity', 0.1)
                 .attr('filter', 'url(#blueGlow)')
@@ -117,7 +117,7 @@ const SurvivalCurve = ({ data }) => {
             svg.append('path')
                 .datum(data)
                 .attr('fill', 'none')
-                .attr('stroke', '#3b82f6')
+                .attr('stroke', 'var(--pnb-navy)')
                 .attr('stroke-width', 2)
                 .attr('d', getLine);
 
@@ -128,12 +128,12 @@ const SurvivalCurve = ({ data }) => {
                 .attr('cx', d => x(d.year))
                 .attr('cy', d => y(d.survival_probability))
                 .attr('r', 3)
-                .attr('fill', '#09090b')
-                .attr('stroke', '#3b82f6')
+                .attr('fill', 'var(--bg-surface)')
+                .attr('stroke', 'var(--pnb-navy)')
                 .attr('stroke-width', 1.5);
 
-            svg.selectAll(".domain").attr("stroke", "#27272a");
-            svg.selectAll(".tick line").attr("stroke", "#27272a");
+            svg.selectAll(".domain").attr("stroke", "var(--border-color)");
+            svg.selectAll(".tick line").attr("stroke", "var(--border-color)");
         }
     }, [data]);
 
