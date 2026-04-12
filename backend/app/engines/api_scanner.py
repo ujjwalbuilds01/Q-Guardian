@@ -10,7 +10,11 @@ OWASP_CHECKS = {
     "API3": "Excessive Data Exposure",
     "API4": "Lack of Rate Limiting",
     "API5": "Broken Function Level Authorization",
-    "API7": "Security Misconfiguration"
+    "API6": "Server-Side Request Forgery",
+    "API7": "Security Misconfiguration",
+    "API8": "Insecure TLS / Automations",
+    "API9": "Improper Assets Management",
+    "API10": "Unsafe Consumption of APIs"
 }
 
 def analyze_security_headers(headers):
@@ -36,10 +40,22 @@ def run_api_scan(base_url):
     info_disclosure = []
     endpoints_checked = []
     
-    if not base_url.startswith("http"):
-        base_url = "https://" + base_url
+    tls_enforced = False
+    if base_url.startswith("https"):
+        tls_enforced = True
+        # Pass 1: Strict TLS Verification
+        try:
+            requests.get(base_url, timeout=4, verify=True)
+        except requests.exceptions.SSLError as ssl_err:
+            findings.append({
+                "id": "API8",
+                "severity": "CRITICAL",
+                "detail": f"TLS Validation Failed. The API endpoints use an invalid/self-signed certificate, making it vulnerable to MITM interception."
+            })
+        except:
+            pass # Other generic connection errors handled by main pass
 
-    # Test basic connectivity
+    # Pass 2: Application Layer Scan
     try:
         response = requests.get(base_url, timeout=5, verify=False)
         endpoints_checked.append({"url": base_url, "status": response.status_code})
@@ -56,20 +72,24 @@ def run_api_scan(base_url):
 
     # Rate Limiting Check (API4)
     rate_limited = False
-    for _ in range(15):
+    start_time = time.time()
+    for _ in range(20):
         try:
-            r = requests.get(base_url, timeout=2, verify=False)
-            if r.status_code == 429:
+            r = requests.get(base_url, timeout=1, verify=False)
+            if r.status_code in [429, 403, 503]:
                 rate_limited = True
                 break
         except:
             break
             
-    if not rate_limited:
+    total_time = time.time() - start_time
+    avg_latency = total_time / 20
+    
+    if not rate_limited and avg_latency < 1.0:
         findings.append({
             "id": "API4", 
             "severity": "HIGH", 
-            "detail": "No rate limiting detected (HTTP 429 not returned on rapid requests)"
+            "detail": f"No rate limiting detected on rapid automated sweeps (Avg Response: {avg_latency:.2f}s)"
         })
 
     # CORS Policy Check
@@ -117,7 +137,7 @@ def run_api_scan(base_url):
     return {
         "url": base_url,
         "status_code": response.status_code,
-        "tls_enforced": base_url.startswith("https"),
+        "tls_enforced": tls_enforced,
         "security_headers": sec_headers,
         "header_score": header_score,
         "owasp_findings": findings,

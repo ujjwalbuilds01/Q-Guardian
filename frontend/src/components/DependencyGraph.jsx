@@ -35,14 +35,16 @@ const DependencyGraph = ({ assets }) => {
       links.push({ source: asset.hostname, target: asset.algorithm, value: 2 });
 
       // CA Node
-      const ca = asset.hostname.includes('pnb') ? 'PNB-INTERNAL-CA' : 'PUBLIC-ROOT-CA';
+      const domainParts = asset.hostname.split('.');
+      const baseDomain = domainParts.length > 2 ? domainParts.slice(-2).join('.').toUpperCase() : asset.hostname.toUpperCase();
+      const ca = `ROOT-CA (${baseDomain})`;
       if (!cas.has(ca)) {
         cas.add(ca);
         nodes.push({ 
           id: ca, 
           name: ca, 
           val: 10, 
-          color: '#A20C39',
+          color: '#1e293b',
           type: 'ca'
         });
       }
