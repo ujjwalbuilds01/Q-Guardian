@@ -42,6 +42,9 @@ class DBAsset(SQLModel, table=True):
     # HNDL data parsed as JSON
     hndl_data: Optional[str] = None
     
+    # Open ports JSON data
+    open_ports_data: Optional[str] = None
+    
     last_scanned: str
 
 def create_db_and_tables():

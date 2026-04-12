@@ -114,6 +114,7 @@ def process_scan_background(job_uuid: str, domain: str):
                     qtri_score=qtri,
                     mosca_data=json.dumps(mosca),
                     hndl_data=json.dumps(hndl) if hndl else None,
+                    open_ports_data=json.dumps(asset.get("open_ports", [])),
                     last_scanned=datetime.now().isoformat()
                 )
                 session.add(db_asset)
@@ -166,6 +167,7 @@ async def list_assets(session: Session = Depends(get_session)):
         adict["id"] = a.asset_uuid
         adict["mosca"] = json.loads(a.mosca_data)
         adict["hndl"] = json.loads(a.hndl_data) if a.hndl_data else None
+        adict["open_ports"] = json.loads(a.open_ports_data) if getattr(a, "open_ports_data", None) else []
         result.append(adict)
     return result
 
