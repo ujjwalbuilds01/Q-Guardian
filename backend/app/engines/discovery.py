@@ -1,9 +1,12 @@
 import ssl
 import socket
-from datetime import datetime
+import datetime
 import json
 import requests
-import dns.resolver
+import urllib3
+from cryptography import x509
+
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 def get_subdomains_from_crtsh(domain: str):
     url = f"https://crt.sh/?q={domain}&output=json"
@@ -27,7 +30,7 @@ def get_real_tls_info(hostname: str):
     result = {
         "tls_version": "Unknown",
         "cipher_suite": "Unknown",
-        "cert_expiry": datetime.now().isoformat(),
+        "cert_expiry": datetime.datetime.now().isoformat(),
         "algorithm": "Unknown",
         "key_size": 0,
         "cert_valid": False,
@@ -45,24 +48,35 @@ def get_real_tls_info(hostname: str):
     try:
         with socket.create_connection((hostname, 443), timeout=3) as sock:
             with ctx.wrap_socket(sock, server_hostname=hostname) as ssock:
-                cert = ssock.getpeercert(binary_form=True)
+                cert_bytes = ssock.getpeercert(binary_form=True)
                 cipher = ssock.cipher()
                 
                 result["tls_version"] = cipher[1]
                 result["cipher_suite"] = cipher[0]
                 
                 # Check for forward secrecy
-                if "EECDH" in cipher[0] or "DHE" in cipher[0]:
+                if "EECDH" in cipher[0] or "DHE" in cipher[0] or "TLS_AES" in cipher[0] or "TLS_CHACHA20" in cipher[0]:
                     result["forward_secrecy"] = True
                     
-                # We'll use cryptography to parse the binary cert if needed, but for simplicity we'll mock the deep cert details that ssl doesn't expose easily
-                # ssl object doesn't expose signature algorithm easily without cryptography module, so we fall back to a reasonable guess
-                result["algorithm"] = "RSA-2048" if "RSA" in result["cipher_suite"] else "ECDSA-256"
-                result["key_size"] = 2048 if "RSA" in result["algorithm"] else 256
+                # Parse exact cert data securely
+                loaded_cert = x509.load_der_x509_certificate(cert_bytes)
+                public_key = loaded_cert.public_key()
+                result["cert_expiry"] = loaded_cert.not_valid_after.isoformat()
+                result["cert_valid"] = True
                 
-                result["cert_valid"] = True # We disabled verification earlier to get the cert, but assuming true here if connection succeeded without deep chain validation
-                result["cert_expiry"] = (datetime.now() + datetime.timedelta(days=90)).isoformat() # Mock expiry for now
-                
+                from cryptography.hazmat.primitives.asymmetric import rsa, ec, x25519
+                if isinstance(public_key, rsa.RSAPublicKey):
+                    result["algorithm"] = f"RSA-{public_key.key_size}"
+                    result["key_size"] = public_key.key_size
+                elif isinstance(public_key, ec.EllipticCurvePublicKey):
+                    result["algorithm"] = f"ECDSA-{public_key.curve.name}"
+                    result["key_size"] = public_key.key_size
+                elif isinstance(public_key, x25519.X25519PublicKey):
+                    result["algorithm"] = "X25519"
+                    result["key_size"] = 256
+                else:
+                    result["algorithm"] = public_key.__class__.__name__
+
                 if "KYBER" in result["cipher_suite"] or "KEM" in result["cipher_suite"]:
                     result["is_pqc"] = True
     except Exception as e:
@@ -76,9 +90,9 @@ def scan_asset(hostname: str):
     tls_data = get_real_tls_info(hostname)
     
     if tls_data.get("error"):
-        tls_version = "1.2" # Fallbacks for offline assets during demo
-        algorithm = "RSA-2048"
-        cipher_suite = "TLS_RSA_WITH_AES_256_CBC_SHA"
+        tls_version = "Unknown"
+        algorithm = "Unknown"
+        cipher_suite = "Unknown"
         forward_secrecy = False
         cert_valid = False
     else:
@@ -88,27 +102,23 @@ def scan_asset(hostname: str):
         forward_secrecy = tls_data["forward_secrecy"]
         cert_valid = tls_data["cert_valid"]
         
-    # Sensitivity Tiers
+    # Standardize sensitivity
     sensitivity = "S5"
     if "api" in hostname: sensitivity = "S1"
     elif "auth" in hostname: sensitivity = "S2"
     elif "vpn" in hostname: sensitivity = "S3"
 
-    # Simulate PQC adoption on specific subdomains to make the demo meaningful if real environment doesn't have it
     is_pqc = tls_data.get("is_pqc", False)
-    if "pqc" in hostname: 
-        algorithm = "ML-KEM-768"
-        is_pqc = True
 
     return {
         "hostname": hostname,
         "tls_version": tls_version,
         "algorithm": algorithm,
-        "key_size": tls_data.get("key_size", 2048),
+        "key_size": tls_data.get("key_size", 0),
         "cipher_suite": cipher_suite,
         "forward_secrecy": forward_secrecy,
         "cert_valid": cert_valid,
-        "cert_expiry": tls_data.get("cert_expiry") or datetime.now().isoformat(),
+        "cert_expiry": tls_data.get("cert_expiry") or datetime.datetime.now().isoformat(),
         "sensitivity_tier": sensitivity,
         "is_pqc": is_pqc,
         "policy_compliant": True if tls_version == "1.3" else False

@@ -64,15 +64,9 @@ def fetch_threat_intel(force_refresh=False):
         except Exception as e:
             print(f"Failed fetching from {source}: {e}")
             
-    # Sort or just limit and populate
-    intel_cache = fresh_intel[:6] # Top 6 recent items
-    last_fetched = datetime.now()
-    
-    # If network fails, provide fallbacks so UI doesn't look broken
-    if not intel_cache:
-        intel_cache = [
-             {"date": "MAR 2026", "source": "IBM", "title": "1,121-qubit Eagle Processor benchmarks published", "impact": "Mosca clocks recalculated (-12 days)"},
-             {"date": "FEB 2026", "source": "NIST", "title": "FIPS 203/204 Final Standards released", "impact": "Compliance mapping updated"}
-        ]
+    # Store successfully fetched data only
+    if fresh_intel:
+        intel_cache = fresh_intel[:6] # Top 6 recent items
+        last_fetched = datetime.now()
         
     return intel_cache
