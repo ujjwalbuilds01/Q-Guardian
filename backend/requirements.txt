@@ -1,0 +1,13 @@
+fastapi
+uvicorn
+sqlmodel
+sslyze
+dnspython
+requests
+python-jose[cryptography]
+passlib[bcrypt]
+pydantic-settings
+python-multipart
+reportlab
+numpy
+matplotlib
