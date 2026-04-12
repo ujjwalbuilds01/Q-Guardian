@@ -55,8 +55,8 @@ const Header = ({ onScan, scanning, polling, domain, setDomain, progress, status
               >
                   <div className="absolute inset-0 bg-[linear-gradient(45deg,rgba(255,255,255,0.2)_25%,transparent_25%,transparent_50%,rgba(255,255,255,0.2)_50%,rgba(255,255,255,0.2)_75%,transparent_75%,transparent)] bg-[size:20px_20px] animate-[progress_2s_linear_infinite]"></div>
               </div>
-              <div className="truncate text-[9px] font-black uppercase tracking-widest text-white px-6 z-20 flex items-center gap-2">
-                  <Activity size={10} className="animate-spin" />
+              <div className="truncate text-[9px] font-black uppercase tracking-widest text-slate-800 px-6 z-20 flex items-center gap-2">
+                  <Activity size={10} className="animate-spin text-pnb-maroon" />
                   {statusMessage || "Initializing Secure Protocol..."} ({progress || 0}%)
               </div>
           </div>

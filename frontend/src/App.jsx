@@ -1,16 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense, lazy } from 'react';
 import axios from 'axios';
 import { ShieldCheck, Clock, AlertTriangle, FileText, LayoutDashboard, Database, Activity, Terminal } from 'lucide-react';
 import Header from './components/Header';
-import Dashboard from './components/Dashboard';
-import AssetTable from './components/AssetTable';
-import HNDLSimulator from './components/HNDLSimulator';
-import CBOMViewer from './components/CBOMViewer';
 import PlaybookModal from './components/PlaybookModal';
-import DependencyGraph from './components/DependencyGraph';
-import ComplianceMapper from './components/ComplianceMapper';
-import ApiScanner from './components/ApiScanner';
 import Chatbot from './components/Chatbot';
+
+const Dashboard = lazy(() => import('./components/Dashboard'));
+const AssetTable = lazy(() => import('./components/AssetTable'));
+const HNDLSimulator = lazy(() => import('./components/HNDLSimulator'));
+const CBOMViewer = lazy(() => import('./components/CBOMViewer'));
+const DependencyGraph = lazy(() => import('./components/DependencyGraph'));
+const ComplianceMapper = lazy(() => import('./components/ComplianceMapper'));
+const ApiScanner = lazy(() => import('./components/ApiScanner'));
 
 const API_BASE = "http://localhost:8000/api/v1";
 
@@ -66,6 +67,12 @@ function App() {
                       await fetchData();
                       setActiveTab('dashboard');
                   }, 1000);
+              } else if (data.status === 'FAILED') {
+                  clearInterval(pollInterval);
+                  setPolling(false);
+                  setScanning(false);
+                  alert("Scan Error: \n" + data.current_step);
+                  setScanStatusMsg('');
               }
           } catch (e) {
               console.error("Polling error");
@@ -132,13 +139,15 @@ function App() {
         </nav>
 
         <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 w-full min-h-[60vh]">
-          {activeTab === 'dashboard' && <Dashboard assets={assets} rating={rating} />}
-          {activeTab === 'assets' && <AssetTable assets={assets} onPlaybook={handleOpenPlaybook} />}
-          {activeTab === 'api_scanner' && <ApiScanner />}
-          {activeTab === 'hndl' && <HNDLSimulator assets={assets} />}
-          {activeTab === 'graph' && <DependencyGraph assets={assets} />}
-          {activeTab === 'compliance' && <ComplianceMapper />}
-          {activeTab === 'cbom' && <CBOMViewer assets={assets} />}
+          <Suspense fallback={<div className="flex items-center justify-center min-h-[60vh] text-slate-400 font-bold uppercase tracking-widest">Loading Module...</div>}>
+            {activeTab === 'dashboard' && <Dashboard assets={assets} rating={rating} />}
+            {activeTab === 'assets' && <AssetTable assets={assets} onPlaybook={handleOpenPlaybook} />}
+            {activeTab === 'api_scanner' && <ApiScanner />}
+            {activeTab === 'hndl' && <HNDLSimulator assets={assets} />}
+            {activeTab === 'graph' && <DependencyGraph assets={assets} />}
+            {activeTab === 'compliance' && <ComplianceMapper />}
+            {activeTab === 'cbom' && <CBOMViewer assets={assets} />}
+          </Suspense>
         </div>
       </main>
 
