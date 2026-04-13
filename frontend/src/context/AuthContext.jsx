@@ -1,0 +1,92 @@
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import axios from 'axios';
+
+const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000/api/v1';
+const TOKEN_KEY = 'qguardian_token';
+const USER_KEY  = 'qguardian_user';
+
+const AuthContext = createContext(null);
+
+export function AuthProvider({ children }) {
+  const [token, setToken]   = useState(() => sessionStorage.getItem(TOKEN_KEY));
+  const [user, setUser]     = useState(() => {
+    const raw = sessionStorage.getItem(USER_KEY);
+    return raw ? JSON.parse(raw) : null;
+  });
+  const [authError, setAuthError] = useState('');
+  const [loggingIn, setLoggingIn] = useState(false);
+
+  // ── Axios interceptor: attach Bearer token to every request ──────────────
+  useEffect(() => {
+    const reqInterceptor = axios.interceptors.request.use((config) => {
+      const t = sessionStorage.getItem(TOKEN_KEY);
+      if (t) {
+        config.headers['Authorization'] = `Bearer ${t}`;
+      }
+      return config;
+    });
+
+    // On 401 response auto-logout
+    const resInterceptor = axios.interceptors.response.use(
+      (res) => res,
+      (err) => {
+        if (err.response?.status === 401) {
+          // Token expired / invalid — force logout
+          _clearSession();
+        }
+        return Promise.reject(err);
+      }
+    );
+
+    return () => {
+      axios.interceptors.request.eject(reqInterceptor);
+      axios.interceptors.response.eject(resInterceptor);
+    };
+  }, []);
+
+  function _clearSession() {
+    sessionStorage.removeItem(TOKEN_KEY);
+    sessionStorage.removeItem(USER_KEY);
+    setToken(null);
+    setUser(null);
+  }
+
+  const login = useCallback(async (username, password) => {
+    setLoggingIn(true);
+    setAuthError('');
+    try {
+      const res = await axios.post(`${API_BASE}/auth/login`, { username, password });
+      const { access_token, username: returnedUser } = res.data;
+
+      sessionStorage.setItem(TOKEN_KEY, access_token);
+      const userObj = { username: returnedUser };
+      sessionStorage.setItem(USER_KEY, JSON.stringify(userObj));
+
+      setToken(access_token);
+      setUser(userObj);
+      return true;
+    } catch (err) {
+      const msg = err.response?.data?.detail || 'Login failed. Check credentials and try again.';
+      setAuthError(msg);
+      return false;
+    } finally {
+      setLoggingIn(false);
+    }
+  }, []);
+
+  const logout = useCallback(() => {
+    _clearSession();
+  }, []);
+
+  return (
+    <AuthContext.Provider value={{ token, user, login, logout, authError, loggingIn, isAuthenticated: !!token }}>
+      {children}
+    </AuthContext.Provider>
+  );
+}
+
+export function useAuth() {
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error('useAuth must be used inside <AuthProvider>');
+  return ctx;
+}

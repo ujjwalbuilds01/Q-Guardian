@@ -61,7 +61,7 @@ def get_real_tls_info(hostname: str):
                 # Parse exact cert data securely
                 loaded_cert = x509.load_der_x509_certificate(cert_bytes)
                 public_key = loaded_cert.public_key()
-                result["cert_expiry"] = loaded_cert.not_valid_after.isoformat()
+                result["cert_expiry"] = loaded_cert.not_valid_after_utc.isoformat()
                 result["cert_valid"] = True
                 
                 from cryptography.hazmat.primitives.asymmetric import rsa, ec, x25519

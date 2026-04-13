@@ -4,11 +4,16 @@ from pydantic import BaseModel
 from typing import List, Optional
 import uuid
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 from sqlmodel import Session, select
 
 # Import DB
 from app.database import engine, create_db_and_tables, get_session, DBScanJob, DBAsset
+from app.auth import (
+    LoginRequest, TokenResponse,
+    authenticate_user, create_access_token, verify_token,
+    ACCESS_TOKEN_EXPIRE_MINUTES
+)
 
 # Import Engines
 from app.engines.discovery import run_discovery, scan_asset
@@ -52,6 +57,27 @@ class ApiScanRequest(BaseModel):
 @app.get("/")
 async def root():
     return {"message": "Q-Guardian Quantum Transition Intelligence Platform API"}
+
+# ─── Auth Endpoint (Public) ────────────────────────────────────────────────────
+@app.post("/api/v1/auth/login", response_model=TokenResponse, tags=["Auth"])
+async def login(req: LoginRequest):
+    user = authenticate_user(req.username, req.password)
+    if not user:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid username or password.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    token = create_access_token(
+        data={"sub": user["username"], "role": user["role"]},
+        expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    )
+    return TokenResponse(
+        access_token=token,
+        token_type="bearer",
+        expires_in=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        username=user["username"]
+    )
 
 def update_job_progress(job_uuid: str, progress: int, step: str, status: Optional[str] = None, session: Optional[Session] = None):
     # If no session provided, create one
@@ -132,8 +158,13 @@ def process_scan_background(job_uuid: str, domain: str):
         traceback.print_exc()
         update_job_progress(job_uuid, 0, f"Scan Failed: {str(e)}", "FAILED")
 
-@app.post("/api/v1/scan/trigger")
-async def trigger_scan(req: ScanRequest, background_tasks: BackgroundTasks, session: Session = Depends(get_session)):
+@app.post("/api/v1/scan/trigger", tags=["Scan"])
+async def trigger_scan(
+    req: ScanRequest,
+    background_tasks: BackgroundTasks,
+    session: Session = Depends(get_session),
+    current_user: dict = Depends(verify_token)  # 🔒 Protected
+):
     job_uuid = str(uuid.uuid4())
     job = DBScanJob(job_uuid=job_uuid, domain=req.domain, status="SCANNING")
     session.add(job)
@@ -143,13 +174,18 @@ async def trigger_scan(req: ScanRequest, background_tasks: BackgroundTasks, sess
     
     return {"status": "success", "job_id": job_uuid}
 
-@app.post("/api/v1/scan/api")
+# API Scanner is intentionally public — used by external security teams
+@app.post("/api/v1/scan/api", tags=["Scan"])
 async def scan_api(req: ApiScanRequest):
     result = run_api_scan(req.url)
     return {"status": "success", "result": result}
 
-@app.get("/api/v1/scan/{job_id}/status")
-async def get_scan_status(job_id: str, session: Session = Depends(get_session)):
+@app.get("/api/v1/scan/{job_id}/status", tags=["Scan"])
+async def get_scan_status(
+    job_id: str,
+    session: Session = Depends(get_session),
+    current_user: dict = Depends(verify_token)  # 🔒 Protected
+):
     job = session.exec(select(DBScanJob).where(DBScanJob.job_uuid == job_id)).first()
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
@@ -161,8 +197,11 @@ async def get_scan_status(job_id: str, session: Session = Depends(get_session)):
         "current_step": job.current_step
     }
 
-@app.get("/api/v1/assets")
-async def list_assets(session: Session = Depends(get_session)):
+@app.get("/api/v1/assets", tags=["Assets"])
+async def list_assets(
+    session: Session = Depends(get_session),
+    current_user: dict = Depends(verify_token)  # 🔒 Protected
+):
     assets = session.exec(select(DBAsset)).all()
     # Serialize back to dict format expected by frontend
     result = []
@@ -175,8 +214,11 @@ async def list_assets(session: Session = Depends(get_session)):
         result.append(adict)
     return result
 
-@app.get("/api/v1/enterprise/rating")
-async def get_rating(session: Session = Depends(get_session)):
+@app.get("/api/v1/enterprise/rating", tags=["Assets"])
+async def get_rating(
+    session: Session = Depends(get_session),
+    current_user: dict = Depends(verify_token)  # 🔒 Protected
+):
     assets = session.exec(select(DBAsset)).all()
     if not assets:
         return {"score": 0, "status": "N/A", "asset_count": 0}
@@ -195,15 +237,22 @@ async def get_rating(session: Session = Depends(get_session)):
         "asset_count": len(assets)
     }
 
-@app.get("/api/v1/migration/{asset_id}/playbook")
-async def get_playbook(asset_id: str, session: Session = Depends(get_session)):
+@app.get("/api/v1/migration/{asset_id}/playbook", tags=["Migration"])
+async def get_playbook(
+    asset_id: str,
+    session: Session = Depends(get_session),
+    current_user: dict = Depends(verify_token)  # 🔒 Protected
+):
     asset = session.exec(select(DBAsset).where(DBAsset.asset_uuid == asset_id)).first()
     if not asset:
         raise HTTPException(status_code=404, detail="Asset not found")
     return get_migration_playbook({"algorithm": asset.algorithm, "tls_version": asset.tls_version})
 
-@app.get("/api/v1/reports/board-brief")
-async def get_board_brief(session: Session = Depends(get_session)):
+@app.get("/api/v1/reports/board-brief", tags=["Reports"])
+async def get_board_brief(
+    session: Session = Depends(get_session),
+    current_user: dict = Depends(verify_token)  # 🔒 Protected
+):
     assets = await list_assets(session)
     qtri_scores = [a["qtri_score"] for a in assets]
     rating_score = calculate_cyber_rating(qtri_scores) if qtri_scores else 0
@@ -219,8 +268,11 @@ async def get_board_brief(session: Session = Depends(get_session)):
         "Content-Disposition": "attachment; filename=PNB_Board_Brief.pdf"
     })
 
-@app.get("/api/v1/compliance/rbi")
-async def get_rbi_compliance(session: Session = Depends(get_session)):
+@app.get("/api/v1/compliance/rbi", tags=["Compliance"])
+async def get_rbi_compliance(
+    session: Session = Depends(get_session),
+    current_user: dict = Depends(verify_token)  # 🔒 Protected
+):
     assets = await list_assets(session)
     return map_to_rbi_controls(assets)
 
@@ -230,15 +282,21 @@ class ChatMessage(BaseModel):
 from app.engines.chatbot import handle_chat_message
 from app.engines.threat_intel import fetch_threat_intel
 
-@app.post("/api/v1/chat")
-async def chat_with_bot(req: ChatMessage, session: Session = Depends(get_session)):
+@app.post("/api/v1/chat", tags=["Chat"])
+async def chat_with_bot(
+    req: ChatMessage,
+    session: Session = Depends(get_session),
+    current_user: dict = Depends(verify_token)  # 🔒 Protected
+):
     assets = await list_assets(session)
     context = {"assets": assets}
     response = handle_chat_message(req.message, context)
     return {"reply": response}
 
-@app.get("/api/v1/threat-intel")
-async def get_threat_intel():
+@app.get("/api/v1/threat-intel", tags=["Intel"])
+async def get_threat_intel(
+    current_user: dict = Depends(verify_token)  # 🔒 Protected
+):
     return fetch_threat_intel()
 
 if __name__ == "__main__":
