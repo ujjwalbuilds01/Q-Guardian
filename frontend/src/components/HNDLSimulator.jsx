@@ -63,8 +63,16 @@ const HNDLSimulator = ({ assets }) => {
                 </div>
                 <div className="text-right">
                     <div className="text-sm font-bold text-slate-600">Score: {asset.hndl.hndl_risk_score}</div>
-                    <div className="text-[10px] text-slate-400 italic">Since Jan 2023</div>
+                    <div className="text-[10px] text-slate-400 italic">
+                      Since {new Date(asset.hndl.harvest_start_date).toLocaleDateString(undefined, { month: 'short', year: 'numeric' })}
+                    </div>
                 </div>
+              </div>
+              <div className="mt-2 pt-2 border-t border-slate-100 flex items-center gap-1">
+                <ShieldAlert size={10} className="text-slate-400" />
+                <span className="text-[9px] text-slate-400 uppercase tracking-tighter">
+                  {asset.hndl.methodology_note || "RBI Tier-Aligned Conservative Baseline"}
+                </span>
               </div>
            </div>
          ))}

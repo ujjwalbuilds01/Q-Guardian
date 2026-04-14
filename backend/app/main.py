@@ -50,6 +50,7 @@ def on_startup():
 
 class ScanRequest(BaseModel):
     domain: str
+    harvest_start: Optional[str] = "2023-01-01"
 
 class ApiScanRequest(BaseModel):
     url: str
@@ -100,7 +101,7 @@ def _perform_update(session: Session, job_uuid: str, progress: int, step: str, s
         session.add(job)
         session.commit()
 
-def process_scan_background(job_uuid: str, domain: str):
+def process_scan_background(job_uuid: str, domain: str, harvest_start: str = "2023-01-01"):
     try:
         update_job_progress(job_uuid, 5, "Initializing engines...", "SCANNING")
         
@@ -125,7 +126,7 @@ def process_scan_background(job_uuid: str, domain: str):
                 update_job_progress(job_uuid, int(progress_base + 5), f"Calculating Q-TRI and Mosca metrics for {asset['hostname']}...", session=session)
                 qtri = calculate_qtri_score(asset)
                 mosca = calculate_mosca_clocks(derive_migration_complexity(asset), asset["sensitivity_tier"])
-                hndl = calculate_hndl_exposure(asset)
+                hndl = calculate_hndl_exposure(asset, harvest_start)
                 
                 db_asset = DBAsset(
                     asset_uuid=str(uuid.uuid4()),
@@ -170,7 +171,7 @@ async def trigger_scan(
     session.add(job)
     session.commit()
     
-    background_tasks.add_task(process_scan_background, job_uuid, req.domain)
+    background_tasks.add_task(process_scan_background, job_uuid, req.domain, req.harvest_start)
     
     return {"status": "success", "job_id": job_uuid}
 

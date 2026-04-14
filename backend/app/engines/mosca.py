@@ -50,8 +50,8 @@ def derive_migration_complexity(asset: dict) -> float:
     return min(max(complexity, 0.5), 4.0)
 
 def calculate_mosca_clocks(migration_complexity: float, sensitivity_tier: str):
-    # X = migration_complexity (normalized to years, 0.5 to 3 years)
-    x = 0.5 + (migration_complexity * 2.5)
+    # X = migration_complexity (already in years: 0.5 to 4.0)
+    x = migration_complexity
     y = SENSITIVITY_SHELF_LIFE.get(sensitivity_tier, 1)
     
     # Calculate days remaining until X+Y hits Z
