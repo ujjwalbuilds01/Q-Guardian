@@ -17,7 +17,7 @@ from app.auth import (
 
 # Import Engines
 from app.engines.discovery import run_discovery, scan_asset
-from app.engines.mosca import calculate_mosca_clocks
+from app.engines.mosca import calculate_mosca_clocks, derive_migration_complexity
 from app.engines.scoring import calculate_qtri_score, calculate_cyber_rating
 from app.engines.hndl import calculate_hndl_exposure
 from app.engines.cbom import CBOMGenerator
@@ -124,7 +124,7 @@ def process_scan_background(job_uuid: str, domain: str):
                 # Analytics Phase
                 update_job_progress(job_uuid, int(progress_base + 5), f"Calculating Q-TRI and Mosca metrics for {asset['hostname']}...", session=session)
                 qtri = calculate_qtri_score(asset)
-                mosca = calculate_mosca_clocks(0.5, asset["sensitivity_tier"])
+                mosca = calculate_mosca_clocks(derive_migration_complexity(asset), asset["sensitivity_tier"])
                 hndl = calculate_hndl_exposure(asset)
                 
                 db_asset = DBAsset(
@@ -197,13 +197,10 @@ async def get_scan_status(
         "current_step": job.current_step
     }
 
-@app.get("/api/v1/assets", tags=["Assets"])
-async def list_assets(
-    session: Session = Depends(get_session),
-    current_user: dict = Depends(verify_token)  # 🔒 Protected
-):
+# ── Internal helper (no auth dependency — safe for server-side calls) ────────
+def _serialize_assets(session: Session) -> list:
+    """Serialize all DBAsset rows to the dict format expected by the frontend."""
     assets = session.exec(select(DBAsset)).all()
-    # Serialize back to dict format expected by frontend
     result = []
     for a in assets:
         adict = a.dict()
@@ -213,6 +210,13 @@ async def list_assets(
         adict["open_ports"] = json.loads(a.open_ports_data) if getattr(a, "open_ports_data", None) else []
         result.append(adict)
     return result
+
+@app.get("/api/v1/assets", tags=["Assets"])
+async def list_assets(
+    session: Session = Depends(get_session),
+    current_user: dict = Depends(verify_token)  # 🔒 Protected
+):
+    return _serialize_assets(session)
 
 @app.get("/api/v1/enterprise/rating", tags=["Assets"])
 async def get_rating(
@@ -253,7 +257,7 @@ async def get_board_brief(
     session: Session = Depends(get_session),
     current_user: dict = Depends(verify_token)  # 🔒 Protected
 ):
-    assets = await list_assets(session)
+    assets = _serialize_assets(session)
     qtri_scores = [a["qtri_score"] for a in assets]
     rating_score = calculate_cyber_rating(qtri_scores) if qtri_scores else 0
     
@@ -273,7 +277,7 @@ async def get_rbi_compliance(
     session: Session = Depends(get_session),
     current_user: dict = Depends(verify_token)  # 🔒 Protected
 ):
-    assets = await list_assets(session)
+    assets = _serialize_assets(session)
     return map_to_rbi_controls(assets)
 
 class ChatMessage(BaseModel):
@@ -288,7 +292,7 @@ async def chat_with_bot(
     session: Session = Depends(get_session),
     current_user: dict = Depends(verify_token)  # 🔒 Protected
 ):
-    assets = await list_assets(session)
+    assets = _serialize_assets(session)
     context = {"assets": assets}
     response = handle_chat_message(req.message, context)
     return {"reply": response}

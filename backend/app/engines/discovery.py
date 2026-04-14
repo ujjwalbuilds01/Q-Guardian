@@ -8,6 +8,59 @@ from cryptography import x509
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
+# ─── Sensitivity Tier Taxonomy (Phase 6) ──────────────────────────────────────
+# Priority order: S1 (most critical) → S5 (public)
+# Based on RBI classification guidelines for banking assets
+TIER_TAXONOMY = {
+    "S1": ["payment", "swift", "rtgs", "neft", "core-banking", "cbs", "transfer", "settle", "finacle"],
+    "S2": ["auth", "login", "sso", "kyc", "identity", "oauth", "token", "biometric", "2fa", "otp"],
+    "S3": ["account", "statement", "txn", "transaction", "history", "passbook", "ledger", "balance"],
+    "S4": ["api", "internal", "vpn", "intranet", "admin", "mgmt", "manage", "backoffice", "gateway"],
+    "S5": ["www", "web", "portal", "public", "info", "static", "cdn", "media", "blog"],
+}
+
+def classify_sensitivity_tier(hostname: str, tls_data: dict, base_domain: str = "") -> str:
+    """
+    Classify an asset's RBI sensitivity tier using:
+    1. Keyword taxonomy match (S1→S5 priority order)
+    2. Apex domain rule (Minimum S3 for root domain)
+    3. TLS-signal fallback for unclassified hostnames
+    """
+    hostname_lower = hostname.lower()
+    base_domain_lower = base_domain.lower()
+
+    # Step 1: Keyword taxonomy — check S1 and S2 (Higher priority than Apex)
+    for tier in ["S1", "S2"]:
+        for kw in TIER_TAXONOMY[tier]:
+            if kw in hostname_lower:
+                return tier
+
+    # Step 2: Apex domain rule — root domain is at least S3
+    if hostname_lower == base_domain_lower and base_domain_lower != "":
+        return "S3"
+
+    # Step 3: Check remaining keywords (S3, S4, S5)
+    for tier in ["S3", "S4", "S5"]:
+        for kw in TIER_TAXONOMY[tier]:
+            if kw in hostname_lower:
+                return tier
+
+    # Step 4: TLS-signal fallback for unclassified hostnames
+    tls_version = tls_data.get("tls_version", "Unknown")
+    forward_secrecy = tls_data.get("forward_secrecy", False)
+    cert_valid = tls_data.get("cert_valid", False)
+
+    # No HTTPS / TLS completely unknown → lowest tier
+    if not cert_valid or tls_version in ("Unknown", "1.0", "1.1", "TLSv1", "TLSv1.1"):
+        return "S5"
+
+    # HTTPS with TLS 1.3 + forward secrecy → assume internal/sensitive
+    if tls_version in ("1.3", "TLSv1.3") and forward_secrecy:
+        return "S3"
+
+    # Everything else: treat as S4 (internal)
+    return "S4"
+
 def get_subdomains_from_crtsh(domain: str):
     url = f"https://crt.sh/?q={domain}&output=json"
     try:
@@ -84,7 +137,7 @@ def get_real_tls_info(hostname: str):
         
     return result
 
-def scan_asset(hostname: str):
+def scan_asset(hostname: str, base_domain: str = ""):
     is_pnb = "pnb" in hostname
     
     tls_data = get_real_tls_info(hostname)
@@ -102,11 +155,8 @@ def scan_asset(hostname: str):
         forward_secrecy = tls_data["forward_secrecy"]
         cert_valid = tls_data["cert_valid"]
         
-    # Standardize sensitivity
-    sensitivity = "S5"
-    if "api" in hostname: sensitivity = "S1"
-    elif "auth" in hostname: sensitivity = "S2"
-    elif "vpn" in hostname: sensitivity = "S3"
+    # Classify sensitivity tier using keyword taxonomy + TLS signal fusion
+    sensitivity = classify_sensitivity_tier(hostname, tls_data, base_domain)
 
     is_pqc = tls_data.get("is_pqc", False)
 
@@ -133,5 +183,5 @@ def run_discovery(domain: str):
     results = []
     # Limit to top 5 for speed during standard scan
     for sub in subdomains[:5]:
-        results.append(scan_asset(sub))
+        results.append(scan_asset(sub, domain))
     return results

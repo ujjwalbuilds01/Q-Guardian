@@ -19,6 +19,36 @@ CRQC_TIMELINE_YEARS = {
     "best_case": 15   # 15 years until CRQC
 }
 
+def derive_migration_complexity(asset: dict) -> float:
+    """
+    Derives migration complexity (X) based on actual asset properties.
+    Returns a value between 0.5 and 4.0 years.
+    """
+    complexity = 0.5  # Base minimum
+    
+    algo = asset.get("algorithm", "").upper()
+    if "RSA" in algo:
+        complexity += 1.0
+        if asset.get("key_size", 0) >= 4096:
+            complexity += 0.5
+    elif "ECDSA" in algo:
+        complexity += 0.25
+        
+    tls_ver = str(asset.get("tls_version", ""))
+    if tls_ver in ("1.0", "1.1"):
+        complexity += 1.0
+    elif tls_ver == "1.2":
+        complexity += 0.5
+        
+    tier = asset.get("sensitivity_tier", "S5")
+    if tier in ("S1", "S2"):
+        complexity += 0.75
+        
+    if not asset.get("forward_secrecy", True):
+        complexity += 0.5
+        
+    return min(max(complexity, 0.5), 4.0)
+
 def calculate_mosca_clocks(migration_complexity: float, sensitivity_tier: str):
     # X = migration_complexity (normalized to years, 0.5 to 3 years)
     x = 0.5 + (migration_complexity * 2.5)
