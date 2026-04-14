@@ -35,6 +35,32 @@ const CBOMViewer = ({ assets }) => {
     downloadAnchorNode.remove();
   };
 
+  const handlePdfDownload = async () => {
+    try {
+      const token = sessionStorage.getItem('token');
+      const apiBase = import.meta.env.VITE_API_BASE || 'http://localhost:8000/api/v1';
+      const response = await fetch(`${apiBase}/cbom/export/pdf`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (!response.ok) throw new Error('PDF export failed');
+      
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'PNB_CBOM_Export.pdf';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    } catch (err) {
+      console.error(err);
+      alert("Failed to export PDF. Check console for details.");
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="glass-card p-6 flex justify-between items-center bg-pnb-maroon text-white border-b-4 border-pnb-gold">
@@ -44,12 +70,20 @@ const CBOMViewer = ({ assets }) => {
             </h3>
             <p className="text-[10px] opacity-70 mt-1">REAL-TIME INVENTORY OF ENTERPRISE CIPHERS AND CERTIFICATES</p>
          </div>
-         <button 
-           onClick={handleDownload}
-           className="bg-pnb-gold text-pnb-maroon px-6 py-2 rounded font-black text-xs hover:bg-white transition-colors"
-         >
-           EXPORT JSON
-         </button>
+         <div className="flex gap-3">
+            <button 
+              onClick={handleDownload}
+              className="bg-slate-700 text-white px-4 py-2 rounded font-black text-xs hover:bg-slate-600 transition-colors"
+            >
+              JSON
+            </button>
+            <button 
+              onClick={handlePdfDownload}
+              className="bg-pnb-gold text-pnb-maroon px-6 py-2 rounded font-black text-xs hover:bg-white transition-colors flex items-center gap-2"
+            >
+              <Download size={14} /> EXPORT PDF
+            </button>
+         </div>
       </div>
 
       <div className="glass-card p-6 bg-slate-900 overflow-hidden relative">

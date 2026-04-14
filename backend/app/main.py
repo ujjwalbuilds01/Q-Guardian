@@ -273,6 +273,20 @@ async def get_board_brief(
         "Content-Disposition": "attachment; filename=PNB_Board_Brief.pdf"
     })
 
+@app.get("/api/v1/cbom/export/pdf", tags=["Reports"])
+async def get_cbom_pdf(
+    session: Session = Depends(get_session),
+    current_user: dict = Depends(verify_token)  # 🔒 Protected
+):
+    assets = _serialize_assets(session)
+    if not assets:
+        raise HTTPException(status_code=404, detail="No assets found to generate CBOM")
+        
+    pdf_buffer = CBOMGenerator.export_pdf(assets)
+    return StreamingResponse(pdf_buffer, media_type="application/pdf", headers={
+        "Content-Disposition": "attachment; filename=PNB_CBOM_Export.pdf"
+    })
+
 @app.get("/api/v1/compliance/rbi", tags=["Compliance"])
 async def get_rbi_compliance(
     session: Session = Depends(get_session),
