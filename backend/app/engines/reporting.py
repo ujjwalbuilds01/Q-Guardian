@@ -6,20 +6,36 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from io import BytesIO
 from datetime import datetime
 
-def generate_board_brief_pdf(assets, rating):
+def generate_board_brief_pdf(assets, rating, scan_date=None):
     buffer = BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=letter)
     styles = getSampleStyleSheet()
     elements = []
 
+    display_date = scan_date if scan_date else datetime.now().strftime('%Y-%m-%d')
+
     # Header
     elements.append(Paragraph("Q-GUARDIAN | QUANTUM TRANSITION INTELLIGENCE", styles['Title']))
-    elements.append(Paragraph(f"BOARD BRIEF - {datetime.now().strftime('%Y-%m-%d')}", styles['Heading2']))
+    elements.append(Paragraph(f"BOARD BRIEF - {display_date}", styles['Heading2']))
     elements.append(Spacer(1, 12))
+
+    # Calculate Risk Statistics
+    critical_assets = [a for a in assets if a.get('mosca', {}).get('risk_state') == 'CRITICAL']
+    warning_assets = [a for a in assets if a.get('mosca', {}).get('risk_state') == 'WARNING']
+    all_days = [a.get('mosca', {}).get('days_remaining_worst', 9999) for a in assets]
+    min_days = min(all_days) if all_days else 0
 
     # Executive Summary
     elements.append(Paragraph("EXECUTIVE SUMMARY", styles['Heading3']))
-    summary_text = f"The enterprise cyber rating is currently <b>{rating['score']} ({rating['status']})</b> based on {rating['asset_count']} discovered assets. Mosca Risk Countdown indicates that critical assets have a risk window opening in as little as 187 days."
+    
+    if critical_assets:
+        narrative = f"CRITICAL: {len(critical_assets)} asset(s) have breached the Mosca safety threshold. Immediate migration planning is required for core infrastructure."
+    elif warning_assets:
+        narrative = f"WARNING: The enterprise risk window opens in as little as {min_days} days. Staged migration for sensitive tiers should commence within this quarter."
+    else:
+        narrative = f"All discovered assets are currently within the Mosca safe zone. Continued monitoring of nation-state CRQC progress is recommended."
+        
+    summary_text = f"The enterprise cyber rating is currently <b>{rating['score']} ({rating['status']})</b> based on {rating['asset_count']} discovered assets. {narrative}"
     elements.append(Paragraph(summary_text, styles['Normal']))
     elements.append(Spacer(1, 12))
 

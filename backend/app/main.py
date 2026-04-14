@@ -268,7 +268,13 @@ async def get_board_brief(
     
     rating = {"score": rating_score, "status": status, "asset_count": len(assets)}
     
-    pdf_buffer = generate_board_brief_pdf(assets, rating)
+    # Get the latest completed scan date
+    latest_job = session.exec(
+        select(DBScanJob).where(DBScanJob.status == "COMPLETED").order_by(DBScanJob.completed_at.desc())
+    ).first()
+    scan_date = latest_job.completed_at[:10] if latest_job and latest_job.completed_at else None
+    
+    pdf_buffer = generate_board_brief_pdf(assets, rating, scan_date=scan_date)
     return StreamingResponse(pdf_buffer, media_type="application/pdf", headers={
         "Content-Disposition": "attachment; filename=PNB_Board_Brief.pdf"
     })
