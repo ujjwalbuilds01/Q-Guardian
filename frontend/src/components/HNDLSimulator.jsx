@@ -3,7 +3,7 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { Activity, ShieldAlert } from 'lucide-react';
 
 const HNDLSimulator = ({ assets }) => {
-  const hndlAssets = assets.filter(a => a.hndl);
+  const hndlAssets = (Array.isArray(assets) ? assets : []).filter(a => a?.hndl);
   
   if (hndlAssets.length === 0) {
     return (
@@ -18,13 +18,13 @@ const HNDLSimulator = ({ assets }) => {
   // Generate timeline data for the chart
   const data = [
     { year: 2023, exposure: 0 },
-    { year: 2024, exposure: hndlAssets.reduce((sum, a) => sum + a.hndl.hndl_risk_score * 0.2, 0) },
-    { year: 2025, exposure: hndlAssets.reduce((sum, a) => sum + a.hndl.hndl_risk_score * 0.5, 0) },
-    { year: 2026, exposure: hndlAssets.reduce((sum, a) => sum + a.hndl.hndl_risk_score, 0) },
-    { year: 2027, exposure: hndlAssets.reduce((sum, a) => sum + a.hndl.hndl_risk_score * 1.5, 0) },
-    { year: 2028, exposure: hndlAssets.reduce((sum, a) => sum + a.hndl.hndl_risk_score * 2.2, 0) },
-    { year: 2029, exposure: hndlAssets.reduce((sum, a) => sum + a.hndl.hndl_risk_score * 3.1, 0) },
-    { year: 2030, exposure: hndlAssets.reduce((sum, a) => sum + a.hndl.hndl_risk_score * 4.5, 0) },
+    { year: 2024, exposure: hndlAssets.reduce((sum, a) => sum + (a?.hndl?.hndl_risk_score ?? 0) * 0.2, 0) },
+    { year: 2025, exposure: hndlAssets.reduce((sum, a) => sum + (a?.hndl?.hndl_risk_score ?? 0) * 0.5, 0) },
+    { year: 2026, exposure: hndlAssets.reduce((sum, a) => sum + (a?.hndl?.hndl_risk_score ?? 0), 0) },
+    { year: 2027, exposure: hndlAssets.reduce((sum, a) => sum + (a?.hndl?.hndl_risk_score ?? 0) * 1.5, 0) },
+    { year: 2028, exposure: hndlAssets.reduce((sum, a) => sum + (a?.hndl?.hndl_risk_score ?? 0) * 2.2, 0) },
+    { year: 2029, exposure: hndlAssets.reduce((sum, a) => sum + (a?.hndl?.hndl_risk_score ?? 0) * 3.1, 0) },
+    { year: 2030, exposure: hndlAssets.reduce((sum, a) => sum + (a?.hndl?.hndl_risk_score ?? 0) * 4.5, 0) },
   ];
 
   return (

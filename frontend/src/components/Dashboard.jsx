@@ -8,21 +8,25 @@ import { API_BASE } from '../lib/api.js';
 
 const Dashboard = ({ assets, rating }) => {
   const [intel, setIntel] = useState([]);
+  const safeAssets = Array.isArray(assets) ? assets : [];
+  const safeRating = rating && typeof rating === 'object'
+    ? rating
+    : { score: 0, status: 'N/A', asset_count: 0 };
 
 useEffect(() => {
     axios.get(`${API_BASE}/threat-intel`)
-      .then(res => setIntel(res.data))
+      .then(res => setIntel(Array.isArray(res.data) ? res.data : []))
       .catch(err => console.error("Failed to fetch threat intel", err));
   }, []);
 
-  if (!rating && assets.length === 0) return (
+  if (!rating && safeAssets.length === 0) return (
     <div className="flex flex-col items-center justify-center py-32 gap-4 animate-in fade-in">
         <div className="w-12 h-12 border-4 border-pnb-maroon border-t-transparent rounded-full animate-spin"></div>
         <div className="text-pnb-maroon font-black tracking-[0.2em] text-[10px] uppercase">Initializing Secure Analytical Layer...</div>
     </div>
   );
 
-  if (assets.length === 0) {
+  if (safeAssets.length === 0) {
       return (
           <div className="glass-card p-12 flex flex-col items-center justify-center border-2 border-dashed border-slate-300 min-h-[50vh] text-center bg-white/50 animate-in zoom-in-95 duration-500">
               <ShieldCheck size={64} className="text-slate-300 mb-6" />
@@ -44,11 +48,11 @@ useEffect(() => {
   };
 
   const data = [
-    { name: 'Elite-PQC', value: assets.filter(a => a.qtri_score >= 85).length, color: '#059669' },
-    { name: 'Advanced', value: assets.filter(a => a.qtri_score >= 70 && a.qtri_score < 85).length, color: '#10b981' },
-    { name: 'Standard', value: assets.filter(a => a.qtri_score >= 50 && a.qtri_score < 70).length, color: '#f59e0b' },
-    { name: 'Legacy', value: assets.filter(a => a.qtri_score >= 30 && a.qtri_score < 50).length, color: '#d97706' },
-    { name: 'Critical', value: assets.filter(a => a.qtri_score < 30).length, color: '#dc2626' },
+    { name: 'Elite-PQC', value: safeAssets.filter(a => (a?.qtri_score ?? 0) >= 85).length, color: '#059669' },
+    { name: 'Advanced', value: safeAssets.filter(a => (a?.qtri_score ?? 0) >= 70 && (a?.qtri_score ?? 0) < 85).length, color: '#10b981' },
+    { name: 'Standard', value: safeAssets.filter(a => (a?.qtri_score ?? 0) >= 50 && (a?.qtri_score ?? 0) < 70).length, color: '#f59e0b' },
+    { name: 'Legacy', value: safeAssets.filter(a => (a?.qtri_score ?? 0) >= 30 && (a?.qtri_score ?? 0) < 50).length, color: '#d97706' },
+    { name: 'Critical', value: safeAssets.filter(a => (a?.qtri_score ?? 0) < 30).length, color: '#dc2626' },
   ];
 
   return (
@@ -69,13 +73,13 @@ useEffect(() => {
             <motion.div 
                 initial={{ scale: 0.8 }}
                 animate={{ scale: 1 }}
-                key={rating.score}
-                className={`text-8xl font-black tracking-tighter drop-shadow-sm ${rating.score > 700 ? 'text-green-600' : rating.score > 400 ? 'text-blue-600' : 'text-pnb-maroon'}`}
+                key={safeRating.score}
+                className={`text-8xl font-black tracking-tighter drop-shadow-sm ${safeRating.score > 700 ? 'text-green-600' : safeRating.score > 400 ? 'text-blue-600' : 'text-pnb-maroon'}`}
             >
-                {rating.score}
+                {safeRating.score}
             </motion.div>
         </div>
-        <div className={`mt-2 px-6 py-1.5 rounded-full bg-pnb-maroon text-white text-[10px] font-black uppercase tracking-widest z-10 shadow-lg border-2 border-white/20`}>{rating.status}</div>
+        <div className={`mt-2 px-6 py-1.5 rounded-full bg-pnb-maroon text-white text-[10px] font-black uppercase tracking-widest z-10 shadow-lg border-2 border-white/20`}>{safeRating.status}</div>
         
         <button 
           onClick={handleDownloadBrief}
@@ -104,10 +108,10 @@ useEffect(() => {
       </div>
 
       <div className="md:col-span-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard title="Total Assets" value={assets.length} icon={<Database size={20}/>} color="#1e293b" />
-        <StatCard title="PQC Ready" value={assets.filter(a => a.is_pqc).length} icon={<ShieldCheck size={20}/>} color="#059669" />
-        <StatCard title="Critical Risks" value={assets.filter(a => a.mosca.risk_state === 'CRITICAL').length} icon={<AlertTriangle size={20}/>} color="#dc2626" />
-        <StatCard title="Mosca Warnings" value={assets.filter(a => a.mosca.risk_state === 'WARNING').length} icon={<Clock size={20}/>} color="#fbbf24" />
+        <StatCard title="Total Assets" value={safeAssets.length} icon={<Database size={20}/>} color="#1e293b" />
+        <StatCard title="PQC Ready" value={safeAssets.filter(a => a?.is_pqc).length} icon={<ShieldCheck size={20}/>} color="#059669" />
+        <StatCard title="Critical Risks" value={safeAssets.filter(a => a?.mosca?.risk_state === 'CRITICAL').length} icon={<AlertTriangle size={20}/>} color="#dc2626" />
+        <StatCard title="Mosca Warnings" value={safeAssets.filter(a => a?.mosca?.risk_state === 'WARNING').length} icon={<Clock size={20}/>} color="#fbbf24" />
       </div>
 
       <div className="md:col-span-3 glass-card p-6 border-l-4 border-pnb-maroon bg-white/50">

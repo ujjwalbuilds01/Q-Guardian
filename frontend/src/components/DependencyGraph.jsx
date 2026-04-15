@@ -10,33 +10,36 @@ const DependencyGraph = ({ assets }) => {
     const cas = new Set();
     const algos = new Set();
 
-    assets.forEach(asset => {
+    (Array.isArray(assets) ? assets : []).forEach(asset => {
+      const hostname = asset?.hostname || `unknown-${nodes.length}`;
+      const risk = asset?.mosca?.risk_state || 'UNKNOWN';
+      const algorithm = asset?.algorithm || 'Unknown Algorithm';
       // Asset Node
       nodes.push({ 
-        id: asset.hostname, 
-        name: asset.hostname.toUpperCase(), 
+        id: hostname, 
+        name: hostname.toUpperCase(), 
         val: 4, 
-        color: asset.mosca.risk_state === 'CRITICAL' ? '#dc2626' : '#A20C39',
+        color: risk === 'CRITICAL' ? '#dc2626' : '#A20C39',
         type: 'asset',
-        risk: asset.mosca.risk_state
+        risk
       });
 
       // Algorithm Node
-      if (!algos.has(asset.algorithm)) {
-        algos.add(asset.algorithm);
+      if (!algos.has(algorithm)) {
+        algos.add(algorithm);
         nodes.push({ 
-          id: asset.algorithm, 
-          name: asset.algorithm, 
+          id: algorithm, 
+          name: algorithm, 
           val: 7, 
           color: '#FBBC09',
           type: 'algo'
         });
       }
-      links.push({ source: asset.hostname, target: asset.algorithm, value: 2 });
+      links.push({ source: hostname, target: algorithm, value: 2 });
 
       // CA Node
-      const domainParts = asset.hostname.split('.');
-      const baseDomain = domainParts.length > 2 ? domainParts.slice(-2).join('.').toUpperCase() : asset.hostname.toUpperCase();
+      const domainParts = hostname.split('.');
+      const baseDomain = domainParts.length > 2 ? domainParts.slice(-2).join('.').toUpperCase() : hostname.toUpperCase();
       const ca = `ROOT-CA (${baseDomain})`;
       if (!cas.has(ca)) {
         cas.add(ca);
@@ -48,7 +51,7 @@ const DependencyGraph = ({ assets }) => {
           type: 'ca'
         });
       }
-      links.push({ source: asset.hostname, target: ca, value: 5 });
+      links.push({ source: hostname, target: ca, value: 5 });
     });
 
     return { nodes, links };

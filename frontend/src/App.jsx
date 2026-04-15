@@ -43,10 +43,12 @@ function App() {
         axios.get(`${API_BASE}/assets`),
         axios.get(`${API_BASE}/enterprise/rating`)
       ]);
-      setAssets(assetsRes.data);
-      setRating(ratingRes.data);
+      setAssets(Array.isArray(assetsRes.data) ? assetsRes.data : []);
+      setRating(ratingRes.data && typeof ratingRes.data === 'object' ? ratingRes.data : null);
     } catch (err) {
       console.error("Error fetching data:", err);
+      setAssets([]);
+      setRating(null);
     }
   };
 
