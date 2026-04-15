@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend } from 'recharts';
-import { ShieldCheck, Clock, AlertTriangle, FileText, Activity, Database, CheckCircle2 } from 'lucide-react';
+import { ShieldCheck, Clock, AlertTriangle, FileText, Activity, Database, CheckCircle2, Radar, TimerReset, Waypoints } from 'lucide-react';
 
 import { motion } from 'framer-motion';
 import { API_BASE } from '../lib/api.js';
@@ -19,12 +19,7 @@ useEffect(() => {
       .catch(err => console.error("Failed to fetch threat intel", err));
   }, []);
 
-  if (!rating && safeAssets.length === 0) return (
-    <div className="flex flex-col items-center justify-center py-32 gap-4 animate-in fade-in">
-        <div className="w-12 h-12 border-4 border-pnb-maroon border-t-transparent rounded-full animate-spin"></div>
-        <div className="text-pnb-maroon font-black tracking-[0.2em] text-[10px] uppercase">Initializing Secure Analytical Layer...</div>
-    </div>
-  );
+  if (!rating && safeAssets.length === 0) return <AnalystWarmupPanel />;
 
   if (safeAssets.length === 0) {
       return (
@@ -140,6 +135,57 @@ const IntelItem = ({ date, source, title, impact }) => (
     </div>
     <div className="text-xs font-bold text-slate-700 leading-snug mb-1 line-clamp-2">{title}</div>
     <div className="text-[9px] text-slate-500 font-medium">IMPACT: {impact}</div>
+  </div>
+);
+
+const AnalystWarmupPanel = () => (
+  <div className="min-h-[60vh] flex items-center justify-center">
+    <div className="w-full max-w-4xl glass-card border border-slate-200 bg-white/90 shadow-xl overflow-hidden">
+      <div className="bg-pnb-maroon text-white px-6 py-5 border-b-4 border-pnb-gold">
+        <div className="flex items-center gap-3 text-sm font-black uppercase tracking-[0.2em]">
+          <Activity size={18} className="text-pnb-gold animate-spin" />
+          Initializing Analyst Workspace
+        </div>
+        <p className="mt-2 text-xs text-white/75 font-semibold">
+          Establishing secure data channels, loading asset posture, and preparing live intelligence modules.
+        </p>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-6">
+        <InfoTile
+          icon={<Radar size={18} />}
+          title="Start Here"
+          body="Use TRIGGER FULL SCAN to assess a domain such as pnb.bank.in or a target subsidiary endpoint."
+        />
+        <InfoTile
+          icon={<TimerReset size={18} />}
+          title="Typical Runtime"
+          body="Average full scans usually complete in 2 to 5 minutes, depending on discovery depth, open services, and endpoint latency."
+        />
+        <InfoTile
+          icon={<Waypoints size={18} />}
+          title="What Loads"
+          body="The platform prepares asset inventory, MOSCA risk states, PQC readiness, threat intelligence, and migration playbooks."
+        />
+      </div>
+
+      <div className="border-t border-slate-100 px-6 py-4 bg-slate-50 text-[11px] text-slate-600 font-semibold flex flex-col gap-1 md:flex-row md:items-center md:justify-between">
+        <span>Tip: the API Scanner tab is best for targeted endpoint checks after the baseline domain scan completes.</span>
+        <span className="text-pnb-maroon uppercase tracking-widest font-black">Secure session in progress</span>
+      </div>
+    </div>
+  </div>
+);
+
+const InfoTile = ({ icon, title, body }) => (
+  <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+    <div className="flex items-center gap-2 text-pnb-maroon font-black text-[11px] uppercase tracking-widest">
+      {icon}
+      {title}
+    </div>
+    <p className="mt-3 text-sm leading-relaxed text-slate-600 font-medium">
+      {body}
+    </p>
   </div>
 );
 
