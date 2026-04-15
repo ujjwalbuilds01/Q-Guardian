@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend } from 'recharts';
-import { ShieldCheck, Clock, AlertTriangle, FileText, Activity, Database } from 'lucide-react';
+import { ShieldCheck, Clock, AlertTriangle, FileText, Activity, Database, CheckCircle2 } from 'lucide-react';
 
 import { motion } from 'framer-motion';
 import { API_BASE } from '../lib/api.js';
@@ -47,12 +47,16 @@ useEffect(() => {
     window.location.href = `${API_BASE}/reports/board-brief`;
   };
 
+  const pqcReadyCount = safeAssets.filter(a => a?.is_pqc).length;
+  const criticalCount = safeAssets.filter(a => a?.mosca?.risk_state === 'CRITICAL').length;
+  const warningCount = safeAssets.filter(a => a?.mosca?.risk_state === 'WARNING').length;
+  const stableCount = safeAssets.filter(a => !a?.mosca || !['CRITICAL', 'WARNING'].includes(a.mosca.risk_state)).length;
+
   const data = [
-    { name: 'Elite-PQC', value: safeAssets.filter(a => (a?.qtri_score ?? 0) >= 85).length, color: '#059669' },
-    { name: 'Advanced', value: safeAssets.filter(a => (a?.qtri_score ?? 0) >= 70 && (a?.qtri_score ?? 0) < 85).length, color: '#10b981' },
-    { name: 'Standard', value: safeAssets.filter(a => (a?.qtri_score ?? 0) >= 50 && (a?.qtri_score ?? 0) < 70).length, color: '#f59e0b' },
-    { name: 'Legacy', value: safeAssets.filter(a => (a?.qtri_score ?? 0) >= 30 && (a?.qtri_score ?? 0) < 50).length, color: '#d97706' },
-    { name: 'Critical', value: safeAssets.filter(a => (a?.qtri_score ?? 0) < 30).length, color: '#dc2626' },
+    { name: 'Stable', value: stableCount, color: '#10b981' },
+    { name: 'Warning', value: warningCount, color: '#f59e0b' },
+    { name: 'Critical', value: criticalCount, color: '#dc2626' },
+    { name: 'PQC Ready', value: pqcReadyCount, color: '#0f766e' },
   ];
 
   return (
@@ -90,7 +94,7 @@ useEffect(() => {
       </motion.div>
 
       <div className="md:col-span-2 glass-card p-6 border-t-4 border-pnb-gold">
-        <h3 className="text-pnb-maroon font-black text-sm mb-4">ASSETS BY CLASSIFICATION</h3>
+        <h3 className="text-pnb-maroon font-black text-sm mb-4">ASSETS BY MOSCA RISK STATE</h3>
         <div className="h-48">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={data.filter(d => d.value > 0)}>
@@ -109,9 +113,9 @@ useEffect(() => {
 
       <div className="md:col-span-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard title="Total Assets" value={safeAssets.length} icon={<Database size={20}/>} color="#1e293b" />
-        <StatCard title="PQC Ready" value={safeAssets.filter(a => a?.is_pqc).length} icon={<ShieldCheck size={20}/>} color="#059669" />
-        <StatCard title="Critical Risks" value={safeAssets.filter(a => a?.mosca?.risk_state === 'CRITICAL').length} icon={<AlertTriangle size={20}/>} color="#dc2626" />
-        <StatCard title="Mosca Warnings" value={safeAssets.filter(a => a?.mosca?.risk_state === 'WARNING').length} icon={<Clock size={20}/>} color="#fbbf24" />
+        <StatCard title="Stable Assets" value={stableCount} icon={<CheckCircle2 size={20}/>} color="#10b981" />
+        <StatCard title="Critical Risks" value={criticalCount} icon={<AlertTriangle size={20}/>} color="#dc2626" />
+        <StatCard title="Mosca Warnings" value={warningCount} icon={<Clock size={20}/>} color="#fbbf24" />
       </div>
 
       <div className="md:col-span-3 glass-card p-6 border-l-4 border-pnb-maroon bg-white/50">
