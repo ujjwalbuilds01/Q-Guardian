@@ -129,7 +129,7 @@ const LoginPage = () => {
 
           <div className="px-8 pb-6">
             <div className="border-t border-slate-100 pt-4 flex items-center justify-between">
-              <div className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">RBI MANDATE SERIES 2026</div>
+              <div className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">Quantum Risk Operations Console</div>
               <div className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">Q-GUARDIAN v2.0</div>
             </div>
           </div>

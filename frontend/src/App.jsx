@@ -1,6 +1,6 @@
 import React, { useState, useEffect, Suspense, lazy } from 'react';
 import axios from 'axios';
-import { ShieldCheck, Clock, AlertTriangle, FileText, LayoutDashboard, Database, Activity, Terminal } from 'lucide-react';
+import { ShieldCheck, Clock, AlertTriangle, FileText, LayoutDashboard, Database, Activity, Terminal, Radar, TimerReset, Waypoints } from 'lucide-react';
 import Header from './components/Header';
 import PlaybookModal from './components/PlaybookModal';
 import Chatbot from './components/Chatbot';
@@ -17,6 +17,57 @@ const CBOMViewer = lazy(() => import('./components/CBOMViewer'));
 const DependencyGraph = lazy(() => import('./components/DependencyGraph'));
 const ComplianceMapper = lazy(() => import('./components/ComplianceMapper'));
 const ApiScanner = lazy(() => import('./components/ApiScanner'));
+
+const AnalystLoadingPanel = () => (
+  <div className="min-h-[60vh] flex items-center justify-center">
+    <div className="w-full max-w-4xl glass-card border border-slate-200 bg-white/90 shadow-xl overflow-hidden">
+      <div className="bg-pnb-maroon text-white px-6 py-5 border-b-4 border-pnb-gold">
+        <div className="flex items-center gap-3 text-sm font-black uppercase tracking-[0.2em]">
+          <Activity size={18} className="text-pnb-gold animate-spin" />
+          Initializing Analyst Workspace
+        </div>
+        <p className="mt-2 text-xs text-white/75 font-semibold">
+          Establishing secure data channels, loading asset posture, and preparing live intelligence modules.
+        </p>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-6">
+        <InfoTile
+          icon={<Radar size={18} />}
+          title="Start Here"
+          body="Use TRIGGER FULL SCAN to assess a domain such as pnb.bank.in or a target subsidiary endpoint."
+        />
+        <InfoTile
+          icon={<TimerReset size={18} />}
+          title="Typical Runtime"
+          body="Average full scans usually complete in 2 to 5 minutes, depending on discovery depth, open services, and endpoint latency."
+        />
+        <InfoTile
+          icon={<Waypoints size={18} />}
+          title="What Loads"
+          body="The platform prepares asset inventory, MOSCA risk states, PQC readiness, threat intelligence, and migration playbooks."
+        />
+      </div>
+
+      <div className="border-t border-slate-100 px-6 py-4 bg-slate-50 text-[11px] text-slate-600 font-semibold flex flex-col gap-1 md:flex-row md:items-center md:justify-between">
+        <span>Tip: the API Scanner tab is best for targeted endpoint checks after the baseline domain scan completes.</span>
+        <span className="text-pnb-maroon uppercase tracking-widest font-black">Secure session in progress</span>
+      </div>
+    </div>
+  </div>
+);
+
+const InfoTile = ({ icon, title, body }) => (
+  <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+    <div className="flex items-center gap-2 text-pnb-maroon font-black text-[11px] uppercase tracking-widest">
+      {icon}
+      {title}
+    </div>
+    <p className="mt-3 text-sm leading-relaxed text-slate-600 font-medium">
+      {body}
+    </p>
+  </div>
+);
 
 function App() {
   const { isAuthenticated } = useAuth();
@@ -168,7 +219,7 @@ function App() {
 
         <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 w-full min-h-[60vh]">
           <ErrorBoundary>
-            <Suspense fallback={<div className="flex items-center justify-center min-h-[60vh] text-slate-400 font-bold uppercase tracking-widest">Loading Module...</div>}>
+            <Suspense fallback={<AnalystLoadingPanel />}>
               {activeTab === 'dashboard' && <Dashboard assets={assets} rating={rating} />}
               {activeTab === 'assets' && <AssetTable assets={assets} onPlaybook={handleOpenPlaybook} />}
               {activeTab === 'api_scanner' && <ApiScanner />}

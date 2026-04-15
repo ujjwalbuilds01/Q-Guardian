@@ -10,7 +10,7 @@ const Header = ({ onScan, scanning, polling, domain, setDomain, progress, status
         
         <div className="flex items-center gap-4 relative z-10">
           <span className="flex items-center gap-1"><ShieldCheck size={18} /> PNB CYBERSECURITY PLATFORM</span>
-          <span className="opacity-70 px-4 border-l border-white/30 hidden sm:block">RBI MANDATE SERIES 2026</span>
+          <span className="opacity-70 px-4 border-l border-white/30 hidden sm:block">QUANTUM RISK OPERATIONS CONSOLE</span>
         </div>
         <div className="hidden md:flex gap-4 relative z-10 items-center">
             {polling && <span className="flex items-center gap-2 text-pnb-gold text-[10px] animate-pulse"><Activity size={14}/> LIVE DATA STREAM</span>}
