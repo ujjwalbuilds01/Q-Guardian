@@ -7,11 +7,11 @@ dnspython
 requests
 python-jose[cryptography]
 passlib[bcrypt]
+bcrypt==4.0.1
 pydantic-settings
 python-multipart
 reportlab
 numpy
 matplotlib
 python-dotenv
-psycopg2-binary
 cryptography
