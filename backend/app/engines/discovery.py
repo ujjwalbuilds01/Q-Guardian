@@ -5,6 +5,8 @@ import json
 import requests
 import urllib3
 from cryptography import x509
+from app.settings import DISCOVERY_MAX_ASSETS
+from app.engines.active_discovery import discover_active_surface
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
@@ -115,7 +117,13 @@ def get_real_tls_info(hostname: str):
                 loaded_cert = x509.load_der_x509_certificate(cert_bytes)
                 public_key = loaded_cert.public_key()
                 result["cert_expiry"] = loaded_cert.not_valid_after_utc.isoformat()
-                result["cert_valid"] = True
+                
+                # Check expiration explicitly
+                now_utc = datetime.datetime.now(datetime.timezone.utc)
+                if loaded_cert.not_valid_before_utc <= now_utc <= loaded_cert.not_valid_after_utc:
+                    result["cert_valid"] = True
+                else:
+                    result["cert_valid"] = False
                 
                 from cryptography.hazmat.primitives.asymmetric import rsa, ec, x25519
                 if isinstance(public_key, rsa.RSAPublicKey):
@@ -160,6 +168,9 @@ def scan_asset(hostname: str, base_domain: str = ""):
 
     is_pqc = tls_data.get("is_pqc", False)
 
+    # Trigger Active Surface Discovery (JS Crawling, Fuzzing, Spec Parsing)
+    discovered_endpoints = discover_active_surface(hostname)
+
     return {
         "hostname": hostname,
         "tls_version": tls_version,
@@ -171,7 +182,8 @@ def scan_asset(hostname: str, base_domain: str = ""):
         "cert_expiry": tls_data.get("cert_expiry") or datetime.datetime.now().isoformat(),
         "sensitivity_tier": sensitivity,
         "is_pqc": is_pqc,
-        "policy_compliant": True if tls_version == "1.3" else False
+        "policy_compliant": True if tls_version == "1.3" else False,
+        "discovered_endpoints": discovered_endpoints
     }
 
 def run_discovery(domain: str):
@@ -181,7 +193,10 @@ def run_discovery(domain: str):
         subdomains.insert(0, domain)
         
     results = []
-    # Limit to top 5 for speed during standard scan
-    for sub in subdomains[:5]:
+    
+    # Use setting to limit assets, if any
+    scan_list = subdomains[:DISCOVERY_MAX_ASSETS] if DISCOVERY_MAX_ASSETS else subdomains
+    
+    for sub in scan_list:
         results.append(scan_asset(sub, domain))
     return results

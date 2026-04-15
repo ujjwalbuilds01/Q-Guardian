@@ -71,6 +71,17 @@ def generate_board_brief_pdf(assets, rating, scan_date=None):
     elements.append(Paragraph("REGULATORY ALIGNMENT", styles['Heading3']))
     elements.append(Paragraph("This report maps to RBI Cybersecurity Framework (CSF) 2.0 and NIST IR 8547 PQC Migration Guidelines.", styles['Normal']))
 
+    # HNDL Grounding Disclaimer
+    elements.append(Spacer(1, 12))
+    elements.append(Paragraph("HNDL SIMULATION ADVISORY", styles['Heading3']))
+    elements.append(Paragraph(
+        "<b>Weakly Grounded Notice:</b> Harvest-Now-Decrypt-Later (HNDL) exposure volumes reported in this brief are calculated using "
+        "RBI-tiered conservative traffic baselines (NSA HNDL Advisory 2023). Without real-time packet capture (PCAP) data or network "
+        "telemetry integration, these figures represent a <b>theoretical risk ceiling</b>, not a verified exfiltration measurement. "
+        "Security analysts should use these metrics for risk prioritization only.",
+        styles['Normal']
+    ))
+
     doc.build(elements)
     buffer.seek(0)
     return buffer

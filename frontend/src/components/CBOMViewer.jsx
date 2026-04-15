@@ -1,7 +1,10 @@
 import React from 'react';
 import { FileCode, Download, ShieldCheck } from 'lucide-react';
 
+import { useToast } from '../context/ToastContext.jsx';
+
 const CBOMViewer = ({ assets }) => {
+  const toast = useToast();
   const cbom = {
     metadata: {
       timestamp: new Date().toISOString(),
@@ -57,7 +60,7 @@ const CBOMViewer = ({ assets }) => {
       a.remove();
     } catch (err) {
       console.error(err);
-      alert("Failed to export PDF. Check console for details.");
+      toast.showError("Failed to export PDF. Check console for details.");
     }
   };
 

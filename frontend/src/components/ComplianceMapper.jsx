@@ -6,7 +6,8 @@ const ComplianceMapper = () => {
   const [data, setData] = useState([]);
 
   useEffect(() => {
-    axios.get("http://localhost:8000/api/v1/compliance/rbi")
+    const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000/api/v1';
+    axios.get(`${API_BASE}/compliance/rbi`)
       .then(res => setData(res.data))
       .catch(err => console.error(err));
   }, []);

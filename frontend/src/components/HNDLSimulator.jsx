@@ -77,6 +77,15 @@ const HNDLSimulator = ({ assets }) => {
            </div>
          ))}
       </div>
+
+      <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mt-8 shadow-sm">
+        <div className="flex items-center gap-2 mb-2 text-amber-700 font-black text-[10px] uppercase tracking-widest">
+            <ShieldAlert size={14} /> HNDL SIMULATION GROUNDING ADVISORY
+        </div>
+        <p className="text-[11px] text-amber-800 leading-relaxed font-medium">
+            <strong>Disclaimer:</strong> This HNDL Simulation is <strong>Weakly Grounded</strong>. In the absence of real-time traffic logs, packet capture (PCAP) data, or integrated network telemetry, the reported exposure volumes (GB) are calculated using RBI-tiered conservative baselines and historical trajectory modeling. These figures represent potential exposure risk based on architectural patterns rather than exact measured data exfiltration. Application security analysts should treat these metrics as a theoretical risk ceiling.
+        </p>
+      </div>
     </div>
   );
 };

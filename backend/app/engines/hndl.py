@@ -1,4 +1,3 @@
-import random
 from datetime import datetime, timedelta
 
 # HNDL: Harvest Now, Decrypt Later

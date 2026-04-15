@@ -16,21 +16,19 @@ export function AuthProvider({ children }) {
   const [authError, setAuthError] = useState('');
   const [loggingIn, setLoggingIn] = useState(false);
 
-  // ── Axios interceptor: attach Bearer token to every request ──────────────
+  // ── Sync axios defaults and interceptors ──────────────
   useEffect(() => {
-    const reqInterceptor = axios.interceptors.request.use((config) => {
-      const t = sessionStorage.getItem(TOKEN_KEY);
-      if (t) {
-        config.headers['Authorization'] = `Bearer ${t}`;
-      }
-      return config;
-    });
+    if (token) {
+      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+    } else {
+      delete axios.defaults.headers.common['Authorization'];
+    }
 
-    // On 401 response auto-logout
+    // On 401 response auto-logout (only if we actually had a token)
     const resInterceptor = axios.interceptors.response.use(
       (res) => res,
       (err) => {
-        if (err.response?.status === 401) {
+        if (err.response?.status === 401 && sessionStorage.getItem(TOKEN_KEY)) {
           // Token expired / invalid — force logout
           _clearSession();
         }
@@ -39,10 +37,9 @@ export function AuthProvider({ children }) {
     );
 
     return () => {
-      axios.interceptors.request.eject(reqInterceptor);
       axios.interceptors.response.eject(resInterceptor);
     };
-  }, []);
+  }, [token]);
 
   function _clearSession() {
     sessionStorage.removeItem(TOKEN_KEY);

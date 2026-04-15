@@ -18,7 +18,7 @@ OWASP_CHECKS = {
 }
 
 def analyze_security_headers(headers):
-    # Normalize headers to lower case for case-insensitive lookup
+    """Analyze HTTP security headers, case-insensitively."""
     headers_lower = {k.lower(): v for k, v in headers.items()}
     
     security_headers = {
@@ -35,91 +35,257 @@ def analyze_security_headers(headers):
     total = len(security_headers)
     return security_headers, int((score / total) * 100), headers_lower.get("access-control-allow-origin")
 
-def run_api_scan(base_url):
+def normalize_url(raw_url: str) -> str:
+    """Ensure the URL has a scheme. Defaults to https:// if missing."""
+    if not raw_url:
+        return ""
+    raw_url = raw_url.strip()
+    if not raw_url:
+        return ""
+    if not raw_url.startswith("http://") and not raw_url.startswith("https://"):
+        raw_url = "https://" + raw_url
+    return raw_url
+
+def check_idor(base_url: str):
+    """API1: Broken Object Level Authorization (IDOR) check."""
+    # Probe predictable IDs and see if they respond with 200 OK without auth
+    test_paths = ["/api/v1/users/1", "/api/v1/users/2", "/api/v1/accounts/1", "/api/v1/accounts/2"]
+    for path in test_paths:
+        try:
+            target = urljoin(base_url, path)
+            r = requests.get(target, timeout=3, verify=False)
+            if r.status_code == 200 and "application/json" in r.headers.get("content-type", ""):
+                return {
+                    "id": "API1",
+                    "severity": "CRITICAL",
+                    "detail": f"IDOR Vulnerability. Sequential object ID accessed without auth context at {target}.",
+                    "vector": "IDOR"
+                }
+        except:
+            pass
+    return None
+
+def check_jwt_bypass(base_url: str):
+    """API2: Broken Authentication (JWT attacks)"""
+    # Test 'alg: none' bypass
+    header = "eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0" # {"alg":"none","typ":"JWT"}
+    payload = "eyJ1c2VyIjoiaGFja2VyIiwicm9sZSI6ImFkbWluIn0" # {"user":"hacker","role":"admin"}
+    token = f"{header}.{payload}."
+    
+    test_paths = ["/api/v1/admin", "/api/v1/profile", "/api/v1/user"]
+    for path in test_paths:
+        try:
+            target = urljoin(base_url, path)
+            r = requests.get(target, headers={"Authorization": f"Bearer {token}"}, timeout=3, verify=False)
+            # If a protected endpoint returns 200 with an alg:none token, it's vulnerable
+            if r.status_code == 200:
+                return {
+                    "id": "API2",
+                    "severity": "CRITICAL",
+                    "detail": f"JWT Signature Bypass. Server accepted an unsigned token (alg:none) at {target}.",
+                    "vector": "JWT_ALG_NONE"
+                }
+        except:
+            pass
+    return None
+
+def check_graphql_introspection(base_url: str):
+    """API3: Excessive Data Exposure (GraphQL Introspection)"""
+    query = {"query": "{ __schema { types { name } } }"}
+    test_paths = ["/graphql", "/api/graphql", "/v1/graphql"]
+    for path in test_paths:
+        try:
+            target = urljoin(base_url, path)
+            r = requests.post(target, json=query, timeout=3, verify=False)
+            if r.status_code == 200 and "__schema" in r.text:
+                return {
+                    "id": "API3",
+                    "severity": "HIGH",
+                    "detail": f"GraphQL Introspection is enabled at {target}. An attacker can map the entire schema.",
+                    "vector": "GRAPHQL_INTRO"
+                }
+        except:
+            pass
+    return None
+
+def check_mass_assignment(base_url: str):
+    """API6: Mass Assignment"""
+    payload = {"username": "test_user", "email": "test@test.com", "role": "admin", "is_admin": True}
+    test_paths = ["/api/v1/users", "/api/v1/register", "/api/v1/profile"]
+    for path in test_paths:
+        try:
+            target = urljoin(base_url, path)
+            r = requests.post(target, json=payload, timeout=3, verify=False)
+            # If server accepts the extra 'role' or 'is_admin' without rejecting the payload (e.g. 400)
+            # and responds with 200/201, it might be vulnerable.
+            if r.status_code in [200, 201]:
+                return {
+                    "id": "API6",
+                    "severity": "HIGH",
+                    "detail": f"Mass Assignment Vulnerability. Server accepted unexpected privileged fields (role, is_admin) at {target}.",
+                    "vector": "MASS_ASSIGNMENT"
+                }
+        except:
+            pass
+    return None
+
+def check_bfla(base_url: str):
+    """API5: Broken Function Level Authorization (Method switching, Admin paths)"""
+    # Test HTTP method switching
+    test_paths = ["/api/v1/users", "/api/v1/accounts"]
+    for path in test_paths:
+        target = urljoin(base_url, path)
+        try:
+            # Try a DELETE or PUT without auth
+            r = requests.delete(target, timeout=3, verify=False)
+            if r.status_code == 200:
+                return {
+                    "id": "API5",
+                    "severity": "CRITICAL",
+                    "detail": f"Broken Function Level Auth. Unauthorized HTTP DELETE allowed at {target}.",
+                    "vector": "BFLA_METHOD"
+                }
+        except:
+            pass
+            
+    # Test admin paths without auth
+    admin_paths = ["/api/v1/admin/users", "/api/v1/admin/config"]
+    for path in admin_paths:
+        target = urljoin(base_url, path)
+        try:
+            r = requests.get(target, timeout=3, verify=False)
+            if r.status_code == 200:
+                 return {
+                    "id": "API5",
+                    "severity": "CRITICAL",
+                    "detail": f"Broken Function Level Auth. Admin endpoint {target} accessible without authorization.",
+                    "vector": "BFLA_ADMIN"
+                }
+        except:
+            pass
+            
+    return None
+
+def run_api_scan(base_url: str):
     findings = []
     info_disclosure = []
     endpoints_checked = []
-    
+
+    # --- Step 0: Normalize the URL (fix missing scheme) ---
+    base_url = normalize_url(base_url)
+
     tls_enforced = False
     if base_url.startswith("https"):
         tls_enforced = True
-        # Pass 1: Strict TLS Verification
+        # Pass 1: Strict TLS certificate verification
         try:
-            requests.get(base_url, timeout=4, verify=True)
-        except requests.exceptions.SSLError as ssl_err:
+            requests.get(base_url, timeout=6, verify=True)
+        except requests.exceptions.SSLError:
             findings.append({
                 "id": "API8",
                 "severity": "CRITICAL",
-                "detail": f"TLS Validation Failed. The API endpoints use an invalid/self-signed certificate, making it vulnerable to MITM interception."
+                "detail": "TLS Validation Failed. The API endpoint uses an invalid or self-signed certificate, making it vulnerable to MITM interception.",
+                "vector": "TLS_ERROR"
             })
-        except:
-            pass # Other generic connection errors handled by main pass
-
-    # Pass 2: Application Layer Scan
-    try:
-        response = requests.get(base_url, timeout=5, verify=False)
-        endpoints_checked.append({"url": base_url, "status": response.status_code})
-    except Exception as e:
-        return {"error": f"Could not connect to {base_url}: {e}"}
-
-    sec_headers, header_score, cors_origin = analyze_security_headers(response.headers)
-    
-    # Check Server Header (Info Disclosure)
-    if "server" in response.headers:
-        info_disclosure.append(f"Server header exposed: {response.headers['server']}")
-    if "x-powered-by" in response.headers:
-        info_disclosure.append(f"Framework exposed: {response.headers['x-powered-by']}")
-
-    # Rate Limiting Check (API4)
-    rate_limited = False
-    start_time = time.time()
-    for _ in range(20):
-        try:
-            r = requests.get(base_url, timeout=1, verify=False)
-            if r.status_code in [429, 403, 503]:
-                rate_limited = True
-                break
-        except:
-            break
-            
-    total_time = time.time() - start_time
-    avg_latency = total_time / 20
-    
-    if not rate_limited and avg_latency < 1.0:
+        except requests.exceptions.ConnectionError:
+            return {"error": f"Could not resolve or connect to host: {base_url}. The server may be offline or the domain does not exist."}
+        except requests.exceptions.Timeout:
+            return {"error": f"Connection to {base_url} timed out during TLS verification."}
+        except requests.exceptions.RequestException as e:
+            return {"error": f"Invalid URL or request failed for {base_url}: {str(e)}"}
+        except Exception as e:
+            return {"error": f"Unexpected error during pre-scan of {base_url}: {e}"}
+    else:
+        # Plain HTTP — flag as a vulnerability without blocking scan
         findings.append({
-            "id": "API4", 
-            "severity": "HIGH", 
-            "detail": f"No rate limiting detected on rapid automated sweeps (Avg Response: {avg_latency:.2f}s)"
+            "id": "API8",
+            "severity": "HIGH",
+            "detail": "No TLS detected. The API is serving traffic over unencrypted HTTP, exposing all data in transit.",
+            "vector": "NO_TLS"
         })
 
-    # CORS Policy Check
+    # --- Pass 2: Application Layer Scan ---
+    try:
+        response = requests.get(base_url, timeout=8, verify=False)
+        endpoints_checked.append({"url": base_url, "status": response.status_code})
+    except requests.exceptions.ConnectionError:
+        return {"error": f"Could not connect to {base_url}. The server may be offline, the domain may not resolve, or a firewall is blocking the request."}
+    except requests.exceptions.Timeout:
+        return {"error": f"Request to {base_url} timed out. The server is too slow or unreachable."}
+    except requests.exceptions.RequestException as e:
+        return {"error": f"Invalid URL or request failed for {base_url}: {str(e)}"}
+    except Exception as e:
+        return {"error": f"Unexpected error connecting to {base_url}: {e}"}
+
+    sec_headers, header_score, cors_origin = analyze_security_headers(response.headers)
+
+    # --- Information Disclosure Check ---
+    if "server" in {k.lower() for k in response.headers}:
+        info_disclosure.append(f"Server header exposed: {response.headers.get('Server', response.headers.get('server'))}")
+    if "x-powered-by" in {k.lower() for k in response.headers}:
+        info_disclosure.append(f"Framework exposed via X-Powered-By: {response.headers.get('X-Powered-By', response.headers.get('x-powered-by'))}")
+
+    # --- Rate Limiting Check (API4) ---
+    rate_limited = False
+    successful_probes = 0
+    start_time = time.time()
+    for _ in range(15):  # Make 15 rapid requests (matching docs)
+        try:
+            r = requests.get(base_url, timeout=2, verify=False)
+            if r.status_code in [429, 503]:
+                rate_limited = True
+                break
+            if r.status_code < 500:
+                successful_probes += 1
+        except Exception:
+            # Drop errors during burst probe but do not count as success
+            pass
+
+    total_time = time.time() - start_time
+    avg_latency = total_time / max(successful_probes, 1)
+
+    if not rate_limited and successful_probes >= 10 and avg_latency < 1.0:
+        findings.append({
+            "id": "API4",
+            "severity": "HIGH",
+            "detail": f"No rate limiting detected after {successful_probes} rapid automated requests (Avg: {avg_latency:.2f}s/req). The API is vulnerable to DDoS and credential-stuffing attacks.",
+            "vector": "NO_RATE_LIMIT"
+        })
+
+    # --- CORS Policy Check (API7) ---
     cors_risk = "LOW"
     if cors_origin == "*":
         cors_risk = "HIGH"
         findings.append({
             "id": "API7",
             "severity": "MEDIUM",
-            "detail": "Wildcard CORS origin (*) allowed"
+            "detail": "Wildcard CORS origin (*) detected. Any website can make credentialed requests to this API, enabling cross-site request forgery attacks.",
+            "vector": "WILDCARD_CORS"
         })
 
-    # Endpoint Discovery & Auth Check
-    common_paths = ['/api', '/v1', '/api/v1', '/swagger.json', '/openapi.json', '/health']
+    # --- Endpoint Discovery & Authentication Check (API2, API3) ---
+    common_paths = [
+        '/api', '/v1', '/api/v1', '/swagger.json', '/openapi.json',
+        '/health', '/docs', '/graphql', '/admin', '/api/users', '/api/accounts'
+    ]
     auth_required = False
-    
+
     for path in common_paths:
         target = urljoin(base_url, path)
         try:
-            r = requests.get(target, timeout=3, verify=False)
+            r = requests.get(target, timeout=4, verify=False)
             if r.status_code in [401, 403]:
                 auth_required = True
-            if r.status_code == 200:
+                endpoints_checked.append({"url": target, "status": r.status_code})
+            elif r.status_code == 200:
                 endpoints_checked.append({"url": target, "status": 200})
-                if 'swagger' in path or 'openapi' in path:
-                    info_disclosure.append(f"API documentation exposed at {target}")
+                if any(kw in path for kw in ['swagger', 'openapi', 'docs', 'graphql']):
+                    info_disclosure.append(f"API documentation is publicly accessible at {target}")
                     findings.append({
                         "id": "API3",
                         "severity": "MEDIUM",
-                        "detail": "Exposed API specs can lead to excessive data exposure"
+                        "detail": f"Publicly accessible API specification at {target} reveals endpoint structure, parameters, and data schema — enabling targeted attacks.",
+                        "vector": "SPEC_EXPOSED"
                     })
         except:
             pass
@@ -128,11 +294,39 @@ def run_api_scan(base_url):
         findings.append({
             "id": "API2",
             "severity": "CRITICAL",
-            "detail": "No authentication mechanism detected on common endpoints"
+            "detail": "No authentication challenge (HTTP 401/403) was detected on any common API endpoint. The API may be entirely unauthenticated.",
+            "vector": "NO_AUTH"
         })
+        
+    # --- Deep Scanning Modules ---
+    idor_res = check_idor(base_url)
+    if idor_res: findings.append(idor_res)
+    
+    jwt_res = check_jwt_bypass(base_url)
+    if jwt_res: findings.append(jwt_res)
+    
+    gql_res = check_graphql_introspection(base_url)
+    if gql_res: findings.append(gql_res)
+    
+    mass_assign_res = check_mass_assignment(base_url)
+    if mass_assign_res: findings.append(mass_assign_res)
+    
+    bfla_res = check_bfla(base_url)
+    if bfla_res: findings.append(bfla_res)
 
-    api_risk_score = header_score - (len(findings) * 10)
-    api_risk_score = max(0, min(100, api_risk_score))
+
+    # --- Deduplicate findings by OWASP ID ---
+    seen_ids = set()
+    unique_findings = []
+    for f in findings:
+        if f["id"] not in seen_ids:
+            unique_findings.append(f)
+            seen_ids.add(f["id"])
+
+    # --- Risk Score: header score minus severity-weighted penalties ---
+    severity_penalties = {"CRITICAL": 25, "HIGH": 15, "MEDIUM": 8, "LOW": 3}
+    penalty = sum(severity_penalties.get(f["severity"], 5) for f in unique_findings)
+    api_risk_score = max(0, min(100, header_score - penalty))
 
     return {
         "url": base_url,
@@ -140,7 +334,7 @@ def run_api_scan(base_url):
         "tls_enforced": tls_enforced,
         "security_headers": sec_headers,
         "header_score": header_score,
-        "owasp_findings": findings,
+        "owasp_findings": unique_findings,
         "cors_policy": {"allow_origin": cors_origin, "risk": cors_risk},
         "auth_required": auth_required,
         "info_disclosure": info_disclosure,

@@ -1,13 +1,18 @@
+import os
 from sqlmodel import Field, SQLModel, create_engine, Session, select
 from typing import Optional, List
 from datetime import datetime
 import json
 
-sqlite_file_name = "qguardian.db"
-sqlite_url = f"sqlite:///{sqlite_file_name}"
+from app.settings import DATABASE_URL
 
-connect_args = {"check_same_thread": False}
-engine = create_engine(sqlite_url, echo=False, connect_args=connect_args)
+# SQLite requires check_same_thread=False; PostgreSQL does not accept it
+if DATABASE_URL.startswith("sqlite"):
+    connect_args = {"check_same_thread": False}
+else:
+    connect_args = {}
+
+engine = create_engine(DATABASE_URL, echo=False, connect_args=connect_args)
 
 class DBScanJob(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -44,6 +49,9 @@ class DBAsset(SQLModel, table=True):
     
     # Open ports JSON data
     open_ports_data: Optional[str] = None
+
+    # Active Discovery: JSON-encoded list of paths
+    discovered_endpoints_data: Optional[str] = None
     
     last_scanned: str
 

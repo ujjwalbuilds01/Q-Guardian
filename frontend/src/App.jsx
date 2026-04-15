@@ -4,6 +4,10 @@ import { ShieldCheck, Clock, AlertTriangle, FileText, LayoutDashboard, Database,
 import Header from './components/Header';
 import PlaybookModal from './components/PlaybookModal';
 import Chatbot from './components/Chatbot';
+import { useToast } from './context/ToastContext.jsx';
+import { useAuth } from './context/AuthContext.jsx';
+import LoginPage from './components/LoginPage';
+import ErrorBoundary from './components/ErrorBoundary';
 
 const Dashboard = lazy(() => import('./components/Dashboard'));
 const AssetTable = lazy(() => import('./components/AssetTable'));
@@ -13,19 +17,26 @@ const DependencyGraph = lazy(() => import('./components/DependencyGraph'));
 const ComplianceMapper = lazy(() => import('./components/ComplianceMapper'));
 const ApiScanner = lazy(() => import('./components/ApiScanner'));
 
-const API_BASE = "http://localhost:8000/api/v1";
+const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000/api/v1';
 
 function App() {
+  const { isAuthenticated } = useAuth();
+  const toast = useToast();
   const [activeTab, setActiveTab] = useState('dashboard');
   const [assets, setAssets] = useState([]);
   const [rating, setRating] = useState(null);
   const [scanning, setScanning] = useState(false);
   const [polling, setPolling] = useState(false);
+  
   const [domain, setDomain] = useState('pnb.bank.in');
   const [selectedAsset, setSelectedAsset] = useState(null);
   const [playbook, setPlaybook] = useState(null);
   const [scanProgress, setScanProgress] = useState(0);
   const [scanStatusMsg, setScanStatusMsg] = useState('');
+
+  if (!isAuthenticated) {
+    return <LoginPage />;
+  }
 
   const fetchData = async () => {
     try {
@@ -47,9 +58,13 @@ function App() {
       const res = await axios.post(`${API_BASE}/scan/trigger`, { domain });
       const jobId = res.data.job_id;
       
-      // Poll for completion (High frequency 1s polling for production feel)
+      // Poll for completion (Adaptive polling for production feel)
       setPolling(true);
-      const pollInterval = setInterval(async () => {
+      let pollDelay = 1000;
+      let active = true;
+
+      const poll = async () => {
+          if (!active) return;
           try {
               const statusRes = await axios.get(`${API_BASE}/scan/${jobId}/status`);
               const data = statusRes.data;
@@ -58,7 +73,7 @@ function App() {
               setScanStatusMsg(data.current_step || 'Processing...');
               
               if (data.status === 'COMPLETED') {
-                  clearInterval(pollInterval);
+                  active = false;
                   setPolling(false);
                   setScanning(false);
                   setScanProgress(100);
@@ -67,20 +82,30 @@ function App() {
                       await fetchData();
                       setActiveTab('dashboard');
                   }, 1000);
+                  return;
               } else if (data.status === 'FAILED') {
-                  clearInterval(pollInterval);
+                  active = false;
                   setPolling(false);
                   setScanning(false);
-                  alert("Scan Error: \n" + data.current_step);
+                  toast.showError("Scan Error: " + data.current_step);
                   setScanStatusMsg('');
+                  return;
               }
+
+              // Adaptive polling: up to 3 seconds
+              if (pollDelay < 3000) pollDelay += 500;
+              setTimeout(poll, pollDelay);
+              
           } catch (e) {
-              console.error("Polling error");
+              console.error("Polling error", e);
+              setTimeout(poll, 1000); // Retry 
           }
-      }, 1000);
+      };
+
+      setTimeout(poll, pollDelay);
       
     } catch (err) {
-      alert("Scan failed. Ensure backend is running.");
+      toast.showError("Scan failed. Ensure backend is running.");
       setScanning(false);
     }
   };
@@ -96,8 +121,10 @@ function App() {
   };
 
   useEffect(() => {
-    fetchData();
-  }, []);
+    if (isAuthenticated) {
+      fetchData();
+    }
+  }, [isAuthenticated]);
 
   const navItems = [
     { id: 'dashboard', label: 'POSTURE DASHBOARD', icon: <LayoutDashboard size={14} /> },
@@ -139,15 +166,17 @@ function App() {
         </nav>
 
         <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 w-full min-h-[60vh]">
-          <Suspense fallback={<div className="flex items-center justify-center min-h-[60vh] text-slate-400 font-bold uppercase tracking-widest">Loading Module...</div>}>
-            {activeTab === 'dashboard' && <Dashboard assets={assets} rating={rating} />}
-            {activeTab === 'assets' && <AssetTable assets={assets} onPlaybook={handleOpenPlaybook} />}
-            {activeTab === 'api_scanner' && <ApiScanner />}
-            {activeTab === 'hndl' && <HNDLSimulator assets={assets} />}
-            {activeTab === 'graph' && <DependencyGraph assets={assets} />}
-            {activeTab === 'compliance' && <ComplianceMapper />}
-            {activeTab === 'cbom' && <CBOMViewer assets={assets} />}
-          </Suspense>
+          <ErrorBoundary>
+            <Suspense fallback={<div className="flex items-center justify-center min-h-[60vh] text-slate-400 font-bold uppercase tracking-widest">Loading Module...</div>}>
+              {activeTab === 'dashboard' && <Dashboard assets={assets} rating={rating} />}
+              {activeTab === 'assets' && <AssetTable assets={assets} onPlaybook={handleOpenPlaybook} />}
+              {activeTab === 'api_scanner' && <ApiScanner />}
+              {activeTab === 'hndl' && <HNDLSimulator assets={assets} />}
+              {activeTab === 'graph' && <DependencyGraph assets={assets} />}
+              {activeTab === 'compliance' && <ComplianceMapper />}
+              {activeTab === 'cbom' && <CBOMViewer assets={assets} />}
+            </Suspense>
+          </ErrorBoundary>
         </div>
       </main>
 

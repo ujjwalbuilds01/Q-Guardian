@@ -1,28 +1,41 @@
 import React, { useState } from 'react';
 import axios from 'axios';
-import { Activity, ShieldCheck, AlertTriangle, CheckCircle, XCircle } from 'lucide-react';
+import { Activity, ShieldCheck, AlertTriangle, CheckCircle, XCircle, Search } from 'lucide-react';
+import { useToast } from '../context/ToastContext.jsx';
 
-const API_BASE = "http://localhost:8000/api/v1";
+const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000/api/v1';
 
 const ApiScanner = () => {
+  const toast = useToast();
   const [apiUrl, setApiUrl] = useState("api.pnb.bank.in");
   const [scanning, setScanning] = useState(false);
   const [result, setResult] = useState(null);
-  const [error, setError] = useState(null);
 
   const handleScan = async () => {
+    if (!apiUrl.trim()) {
+      toast.showError("Please enter a valid API URL.");
+      return;
+    }
+    
+    // Basic format validation
+    const urlPattern = /^[a-zA-Z0-9-._]+(:[0-9]+)?(\/.*)?$/;
+    if (!urlPattern.test(apiUrl.replace(/^https?:\/\//, ''))) {
+       toast.showError("Invalid URL format. Please use a format like api.pnb.bank.in");
+       return;
+    }
+
     setScanning(true);
     setResult(null);
-    setError(null);
     try {
       const res = await axios.post(`${API_BASE}/scan/api`, { url: apiUrl });
       if (res.data.result.error) {
-          setError(res.data.result.error);
+          toast.showError(res.data.result.error);
       } else {
           setResult(res.data.result);
+          toast.showSuccess("API Scan completed successfully!");
       }
     } catch (err) {
-      setError("Failed to connect to backend scanner.");
+      toast.showError(err.response?.data?.detail || "Failed to connect to backend scanner.");
     } finally {
       setScanning(false);
     }
@@ -32,9 +45,12 @@ const ApiScanner = () => {
     <div className="space-y-6">
       <div className="glass-card p-6 bg-pnb-maroon text-white border-b-4 border-pnb-gold">
          <h3 className="font-black text-sm uppercase flex items-center gap-2">
-           <Activity size={20} /> API SECURITY SCANNER (OWASP TOP 10)
+           <Activity size={20} /> TARGETED API SECURITY SCANNER 
          </h3>
-         <p className="text-[10px] opacity-70 mt-1">REAL-TIME ENDPOINT DISCOVERY & VULNERABILITY TESTING</p>
+         <p className="text-[10px] opacity-90 mt-1 uppercase font-bold tracking-widest text-pnb-gold">DIAGNOSTIC TOOL — SINGLE API EXPLORATION</p>
+         <p className="text-[10px] opacity-70 mt-2 leading-relaxed bg-black/20 p-2 rounded border border-white/10">
+           <strong>Note:</strong> This tool performs deep OWASP Top 10 penetration testing against a single, specific API endpoint (e.g., api.target.com). For macroscopic enterprise discovery and cryptographic inventory, use the <strong>Global Sector Scanner</strong> in the header navigation above.
+         </p>
          
          <div className="mt-6 flex items-center gap-3">
             <input 
@@ -42,7 +58,7 @@ const ApiScanner = () => {
               value={apiUrl}
               onChange={(e) => setApiUrl(e.target.value)}
               placeholder="Enter API Base URL (e.g. api.pnb.bank.in)"
-              className="flex-1 px-4 py-2 rounded-md border border-white/20 bg-white/10 text-white placeholder:text-white/50 focus:outline-none focus:ring-2 focus:ring-pnb-gold text-sm font-mono"
+              className="flex-1 px-4 py-2 rounded-md border border-white/30 bg-black/40 text-white placeholder:text-white/50 focus:outline-none focus:ring-2 focus:ring-pnb-gold text-sm font-mono shadow-inner"
             />
             <button 
               onClick={handleScan}
@@ -53,10 +69,11 @@ const ApiScanner = () => {
             </button>
          </div>
       </div>
-
-      {error && (
-          <div className="glass-card p-6 border-l-4 border-red-500 text-red-600 bg-red-50 font-bold flex items-center gap-3">
-              <AlertTriangle size={24} /> {error}
+      {!result && !scanning && (
+          <div className="glass-card p-12 flex flex-col items-center justify-center text-slate-400 border-2 border-dashed border-slate-200 bg-slate-50/50">
+              <Search size={48} className="text-slate-300 mb-4" />
+              <h4 className="font-black text-sm text-slate-500 mb-2">READY TO SCAN</h4>
+              <p className="text-xs max-w-md text-center">Enter an API endpoint above to analyze it against the OWASP API Security Top 10 framework, including authentication, rate-limiting, and data exposure checks.</p>
           </div>
       )}
 
@@ -116,7 +133,14 @@ const ApiScanner = () => {
                                     {f.severity}
                                 </span>
                                 <div>
-                                    <div className="text-sm font-black text-slate-800">{f.id} VULNERABILITY</div>
+                                    <div className="flex items-center gap-2">
+                                        <div className="text-sm font-black text-slate-800">{f.id} VULNERABILITY</div>
+                                        {f.vector && (
+                                            <span className="px-2 py-0.5 text-[9px] font-black bg-slate-800 text-pnb-gold rounded tracking-widest uppercase">
+                                                VECTOR: {f.vector}
+                                            </span>
+                                        )}
+                                    </div>
                                     <div className="text-xs text-slate-600 mt-1 font-mono bg-slate-50 p-2 rounded">{f.detail}</div>
                                 </div>
                             </div>

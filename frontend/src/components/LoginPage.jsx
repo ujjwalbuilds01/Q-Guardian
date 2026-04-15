@@ -135,10 +135,16 @@ const LoginPage = () => {
           </div>
         </div>
 
-        {/* Footer note */}
-        <p className="text-center text-[10px] text-slate-400 mt-6 font-medium">
-          Unauthorised access attempts are logged and reported to PNB Security Operations.
         </p>
+
+        {/* Trial Credentials Hint */}
+        <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg text-center animate-in fade-in slide-in-from-bottom-2 duration-700">
+          <p className="text-[10px] font-black text-amber-700 uppercase tracking-widest mb-1">Trial Credentials</p>
+          <p className="text-[11px] text-amber-800 font-bold">
+            User: <span className="font-mono bg-amber-100 px-1 rounded">qguardian_admin</span> · 
+            Pass: <span className="font-mono bg-amber-100 px-1 rounded">QGuardian@2026</span>
+          </p>
+        </div>
       </div>
 
       {/* Bottom accent bar */}

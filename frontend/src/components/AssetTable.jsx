@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion';
+import { ShieldCheck, Clock, Globe } from 'lucide-react';
 
 const AssetTable = ({ assets, onPlaybook }) => {
   return (
@@ -37,7 +38,25 @@ const AssetTable = ({ assets, onPlaybook }) => {
               >
                 <td className="px-6 py-4">
                     <div className="font-black text-pnb-maroon text-xs tracking-tight">{asset.hostname.toUpperCase()}</div>
-                    <div className="text-[10px] text-slate-400 font-bold tracking-widest mt-0.5 uppercase">Tier: {asset.sensitivity_tier}</div>
+                    <div className="flex items-center gap-2 mt-0.5">
+                        <div className="text-[10px] text-slate-400 font-bold tracking-widest uppercase shrink-0">Tier: {asset.sensitivity_tier}</div>
+                        {asset.discovered_endpoints_data && JSON.parse(asset.discovered_endpoints_data).length > 0 && (
+                            <div className="text-[9px] bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded font-black border border-indigo-100 flex items-center gap-1 group/surface relative cursor-help">
+                                <Globe size={10} /> {JSON.parse(asset.discovered_endpoints_data).length} PATHS
+                                <div className="absolute top-full left-0 mt-2 w-64 bg-white border border-slate-200 shadow-xl rounded-lg p-3 z-50 hidden group-hover/surface:block">
+                                   <div className="text-[10px] text-indigo-600 font-black mb-1 p-1 bg-indigo-50 border-b border-indigo-100 uppercase tracking-widest">Discovered Active Surface</div>
+                                   <ul className="max-h-32 overflow-y-auto space-y-1">
+                                      {JSON.parse(asset.discovered_endpoints_data).slice(0, 5).map((path, pIdx) => (
+                                          <li key={pIdx} className="text-[10px] font-mono text-slate-600 truncate">{path}</li>
+                                      ))}
+                                      {JSON.parse(asset.discovered_endpoints_data).length > 5 && (
+                                          <li className="text-[9px] text-slate-400 italic">+{JSON.parse(asset.discovered_endpoints_data).length - 5} more...</li>
+                                      )}
+                                   </ul>
+                                </div>
+                            </div>
+                        )}
+                    </div>
                 </td>
                 <td className="px-6 py-4">
                   <div className="flex flex-col">

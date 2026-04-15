@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import axios from 'axios';
 import { MessageSquare, X, Send, Bot, ShieldCheck } from 'lucide-react';
 
-const API_BASE = "http://localhost:8000/api/v1";
+const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000/api/v1';
 
 const Chatbot = () => {
     const [isOpen, setIsOpen] = useState(false);

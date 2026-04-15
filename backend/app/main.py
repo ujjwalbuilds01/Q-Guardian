@@ -9,9 +9,11 @@ from sqlmodel import Session, select
 
 # Import DB
 from app.database import engine, create_db_and_tables, get_session, DBScanJob, DBAsset
+from app.settings import FRONTEND_ORIGINS
 from app.auth import (
     LoginRequest, TokenResponse,
     authenticate_user, create_access_token, verify_token,
+    validate_auth_configuration,
     ACCESS_TOKEN_EXPIRE_MINUTES
 )
 
@@ -34,11 +36,7 @@ app = FastAPI(title="Q-Guardian API", version="2.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-        "http://localhost:8000"
-    ],
+    allow_origins=FRONTEND_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -46,6 +44,7 @@ app.add_middleware(
 
 @app.on_event("startup")
 def on_startup():
+    validate_auth_configuration()
     create_db_and_tables()
 
 class ScanRequest(BaseModel):
@@ -146,6 +145,7 @@ def process_scan_background(job_uuid: str, domain: str, harvest_start: str = "20
                     mosca_data=json.dumps(mosca),
                     hndl_data=json.dumps(hndl) if hndl else None,
                     open_ports_data=json.dumps(asset.get("open_ports", [])),
+                    discovered_endpoints_data=json.dumps(asset.get("discovered_endpoints", [])),
                     last_scanned=datetime.now().isoformat()
                 )
                 session.add(db_asset)
@@ -176,8 +176,12 @@ async def trigger_scan(
     return {"status": "success", "job_id": job_uuid}
 
 # API Scanner is intentionally public — used by external security teams
+# UPDATE Phase 6: Now protected.
 @app.post("/api/v1/scan/api", tags=["Scan"])
-async def scan_api(req: ApiScanRequest):
+async def scan_api(
+    req: ApiScanRequest,
+    current_user: dict = Depends(verify_token)  # 🔒 Protected
+):
     result = run_api_scan(req.url)
     return {"status": "success", "result": result}
 

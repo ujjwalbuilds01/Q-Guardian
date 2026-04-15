@@ -12,3 +12,5 @@ reportlab
 numpy
 matplotlib
 python-dotenv
+psycopg2-binary
+cryptography

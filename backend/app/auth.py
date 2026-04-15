@@ -2,21 +2,27 @@ from datetime import datetime, timedelta
 from typing import Optional
 
 from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from pydantic import BaseModel
-from dotenv import load_dotenv
-import os
 
-load_dotenv()
+from app.settings import (
+    ACCESS_TOKEN_EXPIRE_MINUTES,
+    ADMIN_PASSWORD_HASH,
+    ADMIN_USERNAME,
+    ALGORITHM,
+    SECRET_KEY,
+)
 
 # ─── Config ─────────────────────────────────────────────────────────────────
-SECRET_KEY = os.getenv("SECRET_KEY", "fallback-insecure-key-change-in-production")
-ALGORITHM = os.getenv("ALGORITHM", "HS256")
-ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "480"))
-ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "qguardian_admin")
-ADMIN_PASSWORD_HASH = os.getenv("ADMIN_PASSWORD_HASH", "")
+INSECURE_SECRET_KEYS = {
+    "",
+    "changeme",
+    "change-me",
+    "fallback-insecure-key-change-in-production",
+    "your-secret-key",
+}
 
 # ─── Crypto ──────────────────────────────────────────────────────────────────
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -36,6 +42,19 @@ class TokenResponse(BaseModel):
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 def verify_password(plain: str, hashed: str) -> bool:
     return pwd_context.verify(plain, hashed)
+
+
+def validate_auth_configuration() -> None:
+    if SECRET_KEY.lower() in INSECURE_SECRET_KEYS or len(SECRET_KEY) < 32:
+        raise RuntimeError(
+            "SECRET_KEY must be set to a unique value of at least 32 characters."
+        )
+
+    if not ADMIN_USERNAME:
+        raise RuntimeError("ADMIN_USERNAME must be configured.")
+
+    if not ADMIN_PASSWORD_HASH:
+        raise RuntimeError("ADMIN_PASSWORD_HASH must be configured.")
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
     to_encode = data.copy()

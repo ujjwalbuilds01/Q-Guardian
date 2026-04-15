@@ -8,21 +8,41 @@ import { motion } from 'framer-motion';
 const Dashboard = ({ assets, rating }) => {
   const [intel, setIntel] = useState([]);
 
-  useEffect(() => {
-    axios.get("http://localhost:8000/api/v1/threat-intel")
+const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000/api/v1';
+
+useEffect(() => {
+    axios.get(`${API_BASE}/threat-intel`)
       .then(res => setIntel(res.data))
       .catch(err => console.error("Failed to fetch threat intel", err));
   }, []);
 
-  if (!rating) return (
-    <div className="flex flex-col items-center justify-center py-32 gap-4">
+  if (!rating && assets.length === 0) return (
+    <div className="flex flex-col items-center justify-center py-32 gap-4 animate-in fade-in">
         <div className="w-12 h-12 border-4 border-pnb-maroon border-t-transparent rounded-full animate-spin"></div>
         <div className="text-pnb-maroon font-black tracking-[0.2em] text-[10px] uppercase">Initializing Secure Analytical Layer...</div>
     </div>
   );
 
+  if (assets.length === 0) {
+      return (
+          <div className="glass-card p-12 flex flex-col items-center justify-center border-2 border-dashed border-slate-300 min-h-[50vh] text-center bg-white/50 animate-in zoom-in-95 duration-500">
+              <ShieldCheck size={64} className="text-slate-300 mb-6" />
+              <h2 className="text-2xl font-black text-slate-800 mb-2 tracking-tighter">PLATFORM READY</h2>
+              <p className="text-sm text-slate-500 max-w-lg mb-8 font-medium">
+                  Welcome to the **Q-Guardian** Posture Dashboard. There are currently no scanned assets in your inventory. Enter a sector domain (e.g., manipurrural.bank.in) in the header above and trigger a **Global Sector Scan** to begin risk analysis.
+              </p>
+              <div className="flex gap-4 opacity-60 pointer-events-none grayscale">
+                 {/* Preview of core dashboard metrics — shown in greyed state until scan is complete */}
+                 <StatCard title="PQC Ready" value="-" icon={<ShieldCheck size={20}/>} color="#059669" />
+                 <StatCard title="Critical Risks" value="-" icon={<AlertTriangle size={20}/>} color="#dc2626" />
+              </div>
+          </div>
+      );
+  }
+
   const handleDownloadBrief = () => {
-    window.location.href = "http://localhost:8000/api/v1/reports/board-brief";
+    const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000/api/v1';
+    window.location.href = `${API_BASE}/reports/board-brief`;
   };
 
   const data = [
