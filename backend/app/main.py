@@ -9,7 +9,7 @@ from sqlmodel import Session, select
 
 # Import DB
 from app.database import engine, create_db_and_tables, get_session, DBScanJob, DBAsset
-from app.settings import FRONTEND_ORIGINS
+from app.settings import FRONTEND_ORIGINS, FRONTEND_ORIGIN_REGEX
 from app.auth import (
     LoginRequest, TokenResponse,
     authenticate_user, create_access_token, verify_token,
@@ -37,6 +37,7 @@ app = FastAPI(title="Q-Guardian API", version="2.0")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=FRONTEND_ORIGINS,
+    allow_origin_regex=FRONTEND_ORIGIN_REGEX,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

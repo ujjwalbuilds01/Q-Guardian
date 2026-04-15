@@ -2,8 +2,7 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import { Activity, ShieldCheck, AlertTriangle, CheckCircle, XCircle, Search } from 'lucide-react';
 import { useToast } from '../context/ToastContext.jsx';
-
-const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000/api/v1';
+import { API_BASE } from '../lib/api.js';
 
 const ApiScanner = () => {
   const toast = useToast();

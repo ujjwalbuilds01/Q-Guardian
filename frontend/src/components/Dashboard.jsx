@@ -4,11 +4,10 @@ import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, 
 import { ShieldCheck, Clock, AlertTriangle, FileText, Activity, Database } from 'lucide-react';
 
 import { motion } from 'framer-motion';
+import { API_BASE } from '../lib/api.js';
 
 const Dashboard = ({ assets, rating }) => {
   const [intel, setIntel] = useState([]);
-
-const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000/api/v1';
 
 useEffect(() => {
     axios.get(`${API_BASE}/threat-intel`)
@@ -41,7 +40,6 @@ useEffect(() => {
   }
 
   const handleDownloadBrief = () => {
-    const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000/api/v1';
     window.location.href = `${API_BASE}/reports/board-brief`;
   };
 

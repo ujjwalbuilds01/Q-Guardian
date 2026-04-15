@@ -1,9 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
-
-const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000/api/v1';
-const TOKEN_KEY = 'qguardian_token';
-const USER_KEY  = 'qguardian_user';
+import { API_BASE, TOKEN_KEY, USER_KEY } from '../lib/api.js';
 
 const AuthContext = createContext(null);
 

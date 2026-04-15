@@ -185,6 +185,16 @@ Username: qguardian_admin
 Password: QGuardian@2026
 ```
 
+## Deployment Notes
+
+For production, deploy the frontend and backend as separate services unless you have an explicit reverse proxy in front of both.
+
+- **Frontend (Vercel)**: set `VITE_API_BASE` to your backend API base URL, for example `https://your-backend.example.com/api/v1`.
+- **Backend**: set `FRONTEND_ORIGINS` to your production frontend origin, for example `https://pnb-q-guardian.vercel.app`.
+- **Preview Deployments**: if you use Vercel preview URLs, also set `FRONTEND_ORIGIN_REGEX=https://.*\.vercel\.app` on the backend.
+
+If the backend does not allow the exact frontend origin, browser preflight `OPTIONS` requests to `/api/v1/auth/login` will fail with a CORS error before login reaches the API.
+
 ---
 
 ## Regulatory Alignment

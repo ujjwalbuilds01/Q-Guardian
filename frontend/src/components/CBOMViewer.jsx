@@ -2,6 +2,7 @@ import React from 'react';
 import { FileCode, Download, ShieldCheck } from 'lucide-react';
 
 import { useToast } from '../context/ToastContext.jsx';
+import { API_BASE, TOKEN_KEY } from '../lib/api.js';
 
 const CBOMViewer = ({ assets }) => {
   const toast = useToast();
@@ -40,9 +41,8 @@ const CBOMViewer = ({ assets }) => {
 
   const handlePdfDownload = async () => {
     try {
-      const token = sessionStorage.getItem('token');
-      const apiBase = import.meta.env.VITE_API_BASE || 'http://localhost:8000/api/v1';
-      const response = await fetch(`${apiBase}/cbom/export/pdf`, {
+      const token = sessionStorage.getItem(TOKEN_KEY);
+      const response = await fetch(`${API_BASE}/cbom/export/pdf`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }

@@ -1,5 +1,5 @@
 import os
-from typing import List
+from typing import List, Optional
 
 from dotenv import load_dotenv
 
@@ -8,6 +8,13 @@ load_dotenv()
 
 def _clean_csv(value: str) -> List[str]:
     return [item.strip() for item in value.split(",") if item.strip()]
+
+
+def _clean_optional(value: Optional[str]) -> Optional[str]:
+    if value is None:
+        return None
+    cleaned = value.strip()
+    return cleaned or None
 
 
 APP_ENV = os.getenv("APP_ENV", "development").strip().lower()
@@ -24,6 +31,7 @@ FRONTEND_ORIGINS = _clean_csv(
         "http://localhost:5173,http://127.0.0.1:5173,http://localhost:8000",
     )
 )
+FRONTEND_ORIGIN_REGEX = _clean_optional(os.getenv("FRONTEND_ORIGIN_REGEX"))
 
 ALLOW_PRIVATE_SCAN_TARGETS = os.getenv("ALLOW_PRIVATE_SCAN_TARGETS", "false").strip().lower() == "true"
 

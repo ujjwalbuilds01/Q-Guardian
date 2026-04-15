@@ -8,6 +8,7 @@ import { useToast } from './context/ToastContext.jsx';
 import { useAuth } from './context/AuthContext.jsx';
 import LoginPage from './components/LoginPage';
 import ErrorBoundary from './components/ErrorBoundary';
+import { API_BASE } from './lib/api.js';
 
 const Dashboard = lazy(() => import('./components/Dashboard'));
 const AssetTable = lazy(() => import('./components/AssetTable'));
@@ -16,8 +17,6 @@ const CBOMViewer = lazy(() => import('./components/CBOMViewer'));
 const DependencyGraph = lazy(() => import('./components/DependencyGraph'));
 const ComplianceMapper = lazy(() => import('./components/ComplianceMapper'));
 const ApiScanner = lazy(() => import('./components/ApiScanner'));
-
-const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000/api/v1';
 
 function App() {
   const { isAuthenticated } = useAuth();
