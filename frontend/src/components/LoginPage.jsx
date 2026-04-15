@@ -135,8 +135,6 @@ const LoginPage = () => {
           </div>
         </div>
 
-        </p>
-
         {/* Trial Credentials Hint */}
         <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg text-center animate-in fade-in slide-in-from-bottom-2 duration-700">
           <p className="text-[10px] font-black text-amber-700 uppercase tracking-widest mb-1">Trial Credentials</p>
